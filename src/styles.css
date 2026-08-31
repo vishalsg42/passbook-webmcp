@@ -55,6 +55,23 @@
   }
 }
 
+@layer base {
+  /*
+   * Touch targets. Dense desktop controls are fine with a mouse, but a finger
+   * needs about 44px, so every control grows on a coarse pointer rather than
+   * making the desktop layout loose to satisfy a phone.
+   */
+  @media (pointer: coarse) {
+    button,
+    [role='button'],
+    select,
+    input,
+    a {
+      min-height: 44px;
+    }
+  }
+}
+
 @layer utilities {
   .num {
     font-family: var(--font-mono);
