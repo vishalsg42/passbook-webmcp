@@ -1,11 +1,11 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { FilePlus2, ShieldCheck } from 'lucide-react'
+import { CalendarClock, FilePlus2, ShieldCheck, TrendingDown, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Finding } from '@/domain/anomalies'
 import { formatPaise } from '@/domain/money'
-import { addCase } from '@/domain/pack'
+import { addCase, updateCase } from '@/domain/pack'
 import { store } from '@/domain/store'
 import { useStore } from './useStore'
 
@@ -16,11 +16,20 @@ import { useStore } from './useStore'
  * and the reasoning that ruled out a reversal. A number without its evidence is
  * an assertion, and this screen is asking someone to dispute a charge with
  * their bank, so the evidence has to be in front of them.
+ *
+ * Duplicates lead because they are the money you can get back. Standing
+ * commitments and overdraft risk follow, because they are worth knowing but
+ * are not something to dispute.
  */
 export function FindingsPanel() {
   const { findings, transactions, coverage, pack } = useStore()
   const duplicates = findings.filter((f) => f.kind === 'duplicate_charge')
-  const totalAtStake = duplicates.reduce((sum, f) => sum + (f.amount ?? 0), 0)
+  const others = findings.filter((f) => f.kind !== 'duplicate_charge')
+  const dismissedIds = new Set(
+    pack.cases.filter((c) => c.status === 'rejected').map((c) => c.findingId),
+  )
+  const live = duplicates.filter((f) => !dismissedIds.has(f.id))
+  const totalAtStake = live.reduce((sum, f) => sum + (f.amount ?? 0), 0)
 
   if (transactions.length === 0) {
     return (
@@ -39,9 +48,7 @@ export function FindingsPanel() {
     <Card>
       <CardHeader>
         <CardTitle>What we found</CardTitle>
-        <span className="num text-[13px] text-muted">
-          {duplicates.length} to review
-        </span>
+        <span className="num text-[13px] text-muted">{live.length} to review</span>
       </CardHeader>
 
       {coverage && (
@@ -63,7 +70,7 @@ export function FindingsPanel() {
         </div>
       )}
 
-      {duplicates.length > 0 && (
+      {live.length > 0 && (
         <div className="border-b border-line px-5 py-4">
           <p className="m-0 text-[13px] text-muted">Possibly charged twice</p>
           <p className="num m-0 text-[34px] font-semibold leading-tight tracking-tight">
@@ -73,28 +80,33 @@ export function FindingsPanel() {
       )}
 
       <CardContent className="p-0">
-        {duplicates.length === 0 ? (
+        {live.length === 0 ? (
           <p className="px-5 py-10 text-center text-muted">
-            No duplicate charges found in this statement. That is good news.
+            No duplicate charges left to review. That is good news.
           </p>
         ) : (
           <AnimatePresence initial={false}>
-            {duplicates.map((finding, index) => (
+            {live.map((finding, index) => (
               <motion.div
                 key={finding.id}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.25, delay: Math.min(index * 0.04, 0.3) }}
               >
                 <FindingRow
                   finding={finding}
-                  drafted={pack.cases.some((c) => c.findingId === finding.id)}
+                  drafted={pack.cases.some(
+                    (c) => c.findingId === finding.id && c.status !== 'rejected',
+                  )}
                 />
               </motion.div>
             ))}
           </AnimatePresence>
         )}
       </CardContent>
+
+      {others.length > 0 && <OtherFindings findings={others} />}
     </Card>
   )
 }
@@ -102,11 +114,25 @@ export function FindingsPanel() {
 function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }) {
   const draft = () => {
     store.update({ pack: addCase(store.get().pack, finding) })
-    store.log({
-      actor: 'human',
-      action: `Drafted a case for ${finding.title}`,
-      outcome: 'ok',
-    })
+    store.log({ actor: 'human', action: `Drafted a case for ${finding.title}`, outcome: 'ok' })
+  }
+
+  // The human equivalent of the agent's dismiss_candidate tool. Every tool has
+  // to be doable by clicking, or the agent can reach states a person cannot.
+  const dismiss = () => {
+    const state = store.get()
+    const existing = state.pack.cases.find((c) => c.findingId === finding.id)
+    const pack = existing
+      ? updateCase(state.pack, existing.id, {
+          status: 'rejected',
+          rejectionReason: 'Dismissed by the account holder',
+        })
+      : updateCase(addCase(state.pack, finding), `case-${finding.id}`, {
+          status: 'rejected',
+          rejectionReason: 'Dismissed by the account holder',
+        })
+    store.update({ pack })
+    store.log({ actor: 'human', action: `Dismissed ${finding.title}`, outcome: 'ok' })
   }
 
   return (
@@ -138,12 +164,69 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
         {finding.reasoning}
       </p>
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" variant={drafted ? 'ghost' : 'outline'} onClick={draft} disabled={drafted}>
           <FilePlus2 />
           {drafted ? 'In the dispute pack' : 'Draft a dispute letter'}
         </Button>
+        {!drafted && (
+          <Button size="sm" variant="ghost" onClick={dismiss}>
+            <X />
+            Not a duplicate
+          </Button>
+        )}
       </div>
+    </div>
+  )
+}
+
+/** Context worth knowing, but not something to dispute. */
+function OtherFindings({ findings }: { findings: Finding[] }) {
+  const commitments = findings.filter((f) => f.kind === 'standing_commitment')
+  const overdraft = findings.filter((f) => f.kind === 'overdraft_risk')
+
+  return (
+    <div className="border-t border-line">
+      <div className="px-5 pb-1 pt-4">
+        <p className="m-0 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted">
+          Also worth knowing
+        </p>
+      </div>
+
+      {overdraft.map((f) => (
+        <div key={f.id} className="flex gap-3 px-5 py-3">
+          <TrendingDown className="mt-0.5 size-4 shrink-0 text-caution" aria-hidden />
+          <div className="min-w-0">
+            <p className="m-0 text-[14px] font-medium">{f.title}</p>
+            <p className="m-0 text-[13px] text-muted">{f.reasoning}</p>
+          </div>
+        </div>
+      ))}
+
+      {commitments.length > 0 && (
+        <div className="flex gap-3 px-5 pb-4 pt-3">
+          <CalendarClock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <p className="m-0 text-[14px] font-medium">
+              {commitments.length} standing commitment{commitments.length === 1 ? '' : 's'} leave
+              before you look
+            </p>
+            <div className="mt-2 space-y-1">
+              {commitments.slice(0, 4).map((f) => (
+                <div key={f.id} className="flex items-baseline gap-3 text-[13px]">
+                  <span className="min-w-0 flex-1 truncate text-muted">{f.title}</span>
+                  <span className="num font-medium">{formatPaise(f.amount ?? 0)}</span>
+                </div>
+              ))}
+              {commitments.length > 4 && (
+                <p className="m-0 text-[12.5px] text-muted">
+                  and {commitments.length - 4} more
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

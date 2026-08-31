@@ -14,6 +14,30 @@ Built for [The WebMCP Challenge](https://webmcp.devpost.com/). MIT licensed.
 >
 > A demo statement loads automatically, so nothing needs uploading to see it work.
 
+## Why not just upload the PDF to ChatGPT
+
+You can, and for a short statement it works fine. Passbook earns its place on
+three things, and the advantage grows with the size of the statement and how
+much the answer matters.
+
+**The statement never leaves your browser.** Uploading sends every transaction,
+balance and counterparty to a server. Here, parsing happens locally and the
+agent receives only what a tool returned.
+
+**The numbers are computed, not read.** A model eyeballing 154 pages will
+miscount rows, misread amounts, and quietly skip pages. Passbook parsed 1,630 of
+1,630 rows with a balance-chain checksum proving none were lost. Duplicate
+detection is code: reference-keyed, reversal-excluded, recurring-arrangement
+excluded. The naive version of that question returns 367 candidates on this
+statement, most of them refunded charges, cash withdrawals, and instalment plans.
+
+**You get an artifact with state.** A chat message scrolls away. A dispute pack
+is edited case by case, survives a reload, and exports as a letter.
+
+That division of labour is the point: the page does deterministic computation
+over its own data, and the agent handles intent and prose. Neither does the
+other's job.
+
 ## Why WebMCP
 
 Remove `document.modelContext` and this is a spreadsheet you read by yourself. With WebMCP, your
