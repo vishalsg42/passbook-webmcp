@@ -1,7 +1,8 @@
 /**
  * Merchant extraction from bank narration.
  *
- * Real narration shapes observed in the source statements:
+ * Narration shapes these formats use. The examples are invented, but the
+ * structure matches what real statements print:
  *   UPI-PRIYA RAMESH K-PRIYARK123@IB
  *   UPI-DR CITYCARE HOSPITA-CITYCAREHOSPITAL
  *   NEFT CR-ICIC0000001-PAYROLLCO
