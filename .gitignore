@@ -8,3 +8,4 @@ dist
 fixtures/statements/
 *.pdf
 *-statement-*.csv
+tsconfig.tsbuildinfo
