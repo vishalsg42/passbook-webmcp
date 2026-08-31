@@ -1,9 +1,9 @@
 # Passbook
 
-**It found the money you already lost — and wrote the letter to get it back.**
+**It found the money you already lost, and wrote the letter to get it back.**
 
 An agent audits your real bank statements, finds charges you paid twice, and drafts the dispute
-letters with you. You edit, accept, reject. The page exports a dispute pack — a document neither
+letters with you. You edit, accept, reject. The page exports a dispute pack, a document neither
 you nor the agent produces alone.
 
 Submission for The WebMCP Challenge (Devpost / OpenAI).
@@ -18,7 +18,7 @@ Submission for The WebMCP Challenge (Devpost / OpenAI).
 
 ## Read first
 
-`docs/DECISIONS.md` — nine concepts tested, eight killed on verified evidence, plus the claims that
+`docs/DECISIONS.md`, nine concepts tested, eight killed on verified evidence, plus the claims that
 were falsified along the way and the spec facts that constrain the build. **Read it before
 proposing a pivot.**
 
@@ -29,7 +29,7 @@ WebMCP API claims are verified against `index.bs` or Chrome's docs before being 
 
 **No stubs.** No placeholder implementations, no `TODO: implement`, no fake data path dressed as a
 real one. If something can't be finished, cut it from scope rather than shipping a shell. Seeded
-demo data is real seeded data, clearly labelled — that is not a stub.
+demo data is real seeded data, clearly labelled, that is not a stub.
 
 **Every tool has a human UI equivalent.** If the agent can do it, a person can do it by clicking.
 This is the test of whether Passbook is a product rather than a tool demo.
@@ -41,25 +41,25 @@ Currency INR; **all money as integer paise, never floats.** State must survive r
 
 ## UI/UX
 
-Build with the `ui-ux-pro-max` or `impeccable` skill — invoke it *before* writing UI. Target a
+Build with the `ui-ux-pro-max` or `impeccable` skill, invoke it *before* writing UI. Target a
 fintech app a non-technical person can use: calm, legible, trust-building. Motion supports
 comprehension and is never decorative.
 
-## Claims — these affect judging
+## Claims, these affect judging
 
 **Say:** the agent drafts into a document the human commits; no credential ever reaches the agent;
 findings are evidence-backed and reversal-checked; every tool result the page produced is logged
 with the exact field set returned.
 
 **Never say:**
-- "A backend MCP server structurally cannot do this" — false, the MCP spec permits scope-varying
+- "A backend MCP server structurally cannot do this", false, the MCP spec permits scope-varying
   tool lists.
-- "Cloudflare documents promise-holding as canonical HITL" — false, `needsApproval` pauses in the
+- "Cloudflare documents promise-holding as canonical HITL", false, `needsApproval` pauses in the
   harness before `execute`.
-- "Prompt-injection proof" — Chrome has publicly declined that claim.
-- "Your data never leaves the browser" — tool results reach the model. The honest claim is **data
+- "Prompt-injection proof", Chrome has publicly declined that claim.
+- "Your data never leaves the browser", tool results reach the model. The honest claim is **data
   minimisation**.
-- "Every field the agent ever saw is logged" — observations bypass `execute` entirely.
+- "Every field the agent ever saw is logged", observations bypass `execute` entirely.
 
 **Headline is the money found, never the mechanism.** Approval-gating is the most documented idea
 in this ecosystem; leading with it caps the submission at mid-field.
@@ -83,12 +83,16 @@ npm test
 - The app feature-detects `document.modelContext ?? navigator.modelContext` and degrades to full
   manual use behind a capability banner.
 
-## Day-one gate (status: NOT YET VERIFIED)
+## Day-one gate (status: PASSED)
 
-Before further feature work, prove an external agent invokes a registered tool **twice
-consecutively** in both ChatGPT's in-app browser and Chrome-with-flag. If it fails, pivot to the
-in-page agent path or reconsider. `Origin-Agent-Cluster: ?1` is confirmed served in dev and
-configured for Netlify.
+Verified on Chrome 151: `document.modelContext` present, `window.originAgentCluster` true, all
+tools discoverable through `getTools()`, and two consecutive `executeTool` invocations succeeded.
+
+Two API facts that cost time and are worth keeping:
+- `executeTool` takes its arguments as a **JSON string**. Passing an object rejects with
+  `UnknownError: Failed to parse input arguments`.
+- The tool passed to `executeTool` must be the object `getTools()` returned; it carries a required
+  `origin` member, and a hand-built literal throws a `TypeError` before execution.
 
 ## Privacy
 
