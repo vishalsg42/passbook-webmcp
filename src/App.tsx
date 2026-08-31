@@ -2,7 +2,8 @@ import { useEffect } from 'react'
 import { BookText, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { store } from '@/domain/store'
-import { recomputeFindings, registerPassbookTools } from '@/tools'
+import { recomputeFindings } from '@/tools'
+import { syncToolSurface } from '@/tools/surface'
 import { SEED_LABEL, seedTransactions } from '@/domain/seed'
 import { validateChain } from '@/import/pdf/chain'
 import { isWebMCPAvailable } from '@/webmcp/types'
@@ -21,7 +22,11 @@ export function App() {
   const persistError = store.persistError
 
   useEffect(() => {
-    registerPassbookTools()
+    // The registered surface follows app state, so it is re-synced on every
+    // change rather than registered once at mount. sync() diffs against what
+    // is already registered, so repeated calls are cheap and do not flap.
+    syncToolSurface()
+    const unsubscribe = store.subscribe(syncToolSurface)
 
     // Load the demo statement on a first visit so the app is never an empty
     // shell. Anything already imported or restored from storage wins.
@@ -48,6 +53,8 @@ export function App() {
         detail: `${seeded.length} sample transactions`,
       })
     }
+
+    return unsubscribe
   }, [])
 
   return (
@@ -70,10 +77,7 @@ export function App() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => {
-                store.reset()
-                registerPassbookTools()
-              }}
+              onClick={() => store.reset()}
             >
               Start over
             </Button>

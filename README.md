@@ -52,6 +52,42 @@ The agent never receives a credential. It cannot commit anything: every draft la
 as a proposal, and only a human action moves it into the exported document. The draft the agent
 wrote is kept next to the version you accepted, so the difference stays visible.
 
+## The tool surface follows the state of the app
+
+A tool that exists and returns "you cannot use me yet" is enforcement by
+instruction: the model is asked not to do something it is still able to do. The
+ablation posted to WebMCP spec issue #165 measured that arrangement failing 18
+out of 18 times under an adversarial prompt, against 0 out of 18 when the
+capability was absent.
+
+So Passbook does not ask. Before a statement is imported, the analysis tools are
+not registered at all. Observed on Chrome 151:
+
+```
+statement loaded          7 tools
+                          list_accounts, get_duplicate_candidates, get_transactions,
+                          get_spending_summary, draft_dispute_case, dismiss_candidate,
+                          explain_unavailable_tools
+
+account holder clears it  2 tools
+                          list_accounts, explain_unavailable_tools
+
+agent calls a capability  UnknownError
+it still holds a          (from the browser, not a refusal from Passbook)
+reference to
+```
+
+That last line is the part that matters. An agent holding a reference from an
+earlier observation does not get a polite refusal, it gets a failure from the
+browser, because the capability is genuinely gone.
+
+Drafting withdraws the same way once every candidate has been handled, and pack
+status only appears once the pack has something in it. One explainer tool stays
+registered permanently and reports what is missing and why, so an agent that
+expected a tool learns the reason instead of guessing. Keeping it always present
+also avoids the flapping the spec warns about in its
+`unregistration-execution-race` example.
+
 ## What makes the findings trustworthy
 
 Duplicate detection is the whole product, so it is built to be defensible rather than noisy.

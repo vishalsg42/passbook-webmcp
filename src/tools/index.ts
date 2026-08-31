@@ -3,7 +3,6 @@ import { formatPaise } from '../domain/money'
 import { addCase, packValue, renderPack, updateCase } from '../domain/pack'
 import { store } from '../domain/store'
 import { bankLabel, type Transaction } from '../domain/types'
-import { registry } from '../webmcp/registry'
 import type { ToolDescriptor, ToolResult } from '../webmcp/types'
 
 /**
@@ -17,6 +16,17 @@ import type { ToolDescriptor, ToolResult } from '../webmcp/types'
  * descriptions are kept inside Chrome's published budgets: 500 characters per
  * description, 150 per parameter, 30 per name.
  */
+
+export const TOOL_NAMES = {
+  listAccounts: 'list_accounts',
+  getDuplicateCandidates: 'get_duplicate_candidates',
+  getTransactions: 'get_transactions',
+  getSpendingSummary: 'get_spending_summary',
+  draftDisputeCase: 'draft_dispute_case',
+  dismissCandidate: 'dismiss_candidate',
+  getPackStatus: 'get_pack_status',
+  explainUnavailable: 'explain_unavailable_tools',
+} as const
 
 function ok(payload: unknown): ToolResult {
   return { content: [{ type: 'text', text: JSON.stringify(payload) }] }
@@ -33,14 +43,6 @@ function coverageBlock() {
     balanceChainIntact: coverage.chainIntact,
     pages: coverage.pageCount,
   }
-}
-
-function noStatement(): ToolResult {
-  return ok({
-    error: 'no_statement',
-    message:
-      'No statement has been imported yet. The account holder needs to upload a bank statement PDF or CSV in Passbook first.',
-  })
 }
 
 function summarise(t: Transaction) {
@@ -61,7 +63,15 @@ const listAccounts: ToolDescriptor<Record<string, never>> = {
   annotations: { readOnlyHint: true },
   execute: () => {
     const { transactions, statementLabel } = store.get()
-    if (transactions.length === 0) return noStatement()
+    // list_accounts is always registered, so this is the one place a genuine
+    // empty state can still be reached.
+    if (transactions.length === 0) {
+      return ok({
+        accounts: [],
+        message:
+          'No statement has been imported yet. The analysis tools are not registered until one is.',
+      })
+    }
 
     const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date))
     const result = {
@@ -94,8 +104,7 @@ const getDuplicateCandidates: ToolDescriptor<{ minAmount?: number }> = {
   },
   annotations: { readOnlyHint: true, untrustedContentHint: true },
   execute: ({ minAmount }) => {
-    const { findings, transactions } = store.get()
-    if (transactions.length === 0) return noStatement()
+    const { findings } = store.get()
 
     const floor = (minAmount ?? 0) * 100
     const duplicates = findings
@@ -142,7 +151,6 @@ const getTransactions: ToolDescriptor<{ from?: string; to?: string; search?: str
   annotations: { readOnlyHint: true, untrustedContentHint: true },
   execute: ({ from, to, search, limit }) => {
     const { transactions } = store.get()
-    if (transactions.length === 0) return noStatement()
 
     const needle = search?.toLowerCase()
     const filtered = transactions.filter(
@@ -179,7 +187,6 @@ const getSpendingSummary: ToolDescriptor<Record<string, never>> = {
   annotations: { readOnlyHint: true },
   execute: () => {
     const { transactions, findings } = store.get()
-    if (transactions.length === 0) return noStatement()
 
     const out = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0)
     const inflow = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0)
@@ -287,9 +294,10 @@ export const ALL_TOOLS = [
   getPackStatus,
 ] as unknown as ToolDescriptor<never>[]
 
-/** Register the suite. Called once the app has mounted. */
+/** Register the tools the current state supports. Re-run on every change. */
 export function registerPassbookTools(): void {
-  registry.sync(ALL_TOOLS)
+  // Imported lazily: surface.ts imports ALL_TOOLS from here.
+  void import('./surface').then((m) => m.syncToolSurface())
 }
 
 /** Recompute findings from the current transactions. */
