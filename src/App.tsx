@@ -11,6 +11,7 @@ import { AuditPanel } from './ui/AuditPanel'
 import { FindingsPanel } from './ui/FindingsPanel'
 import { ImportPanel } from './ui/ImportPanel'
 import { PackPanel } from './ui/PackPanel'
+import { StatementPanel } from './ui/StatementPanel'
 import { ToolSurfacePanel } from './ui/ToolSurfacePanel'
 import { useStore } from './ui/useStore'
 
@@ -105,6 +106,7 @@ export function App() {
           <ImportPanel />
           <FindingsPanel />
           <PackPanel />
+          <StatementPanel />
         </div>
         <div className="flex min-w-0 flex-col gap-5">
           <AgentPanel />
