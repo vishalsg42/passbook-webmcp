@@ -86,14 +86,25 @@ export class ToolRegistry {
   }
 
   /** Replace the registered set with exactly `descriptors`, in one synchronous
-   *  pass. Used when application state changes which tools should exist. */
+   *  pass. Used when application state changes which tools should exist.
+   *
+   *  A name that is already registered is re-registered when the descriptor
+   *  itself has changed. Skipping that would silently keep the old behaviour
+   *  under a familiar name, which is worse than not registering at all: the
+   *  agent sees the name it expects and gets something else. */
   sync(descriptors: ToolDescriptor<never>[]): void {
-    const wanted = new Set(descriptors.map((d) => d.name))
+    const wanted = new Map(descriptors.map((d) => [d.name, d]))
+
     for (const name of [...this.entries.keys()]) {
       if (!wanted.has(name)) this.unregister(name)
     }
+
     for (const descriptor of descriptors) {
-      if (!this.entries.has(descriptor.name)) this.register(descriptor)
+      const existing = this.entries.get(descriptor.name)
+      if (existing?.descriptor === descriptor) continue
+      // register() performs a synchronous abort-then-register swap, so
+      // replacing in place is safe and cannot hit the duplicate name race.
+      this.register(descriptor)
     }
   }
 

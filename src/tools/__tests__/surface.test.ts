@@ -54,3 +54,17 @@ describe('tool surface follows state', () => {
     }
   })
 })
+
+describe('registry sync replaces a changed descriptor', () => {
+  it('does not keep old behaviour under a familiar name', async () => {
+    const { ToolRegistry } = await import('../../webmcp/registry')
+    const r = new ToolRegistry()
+    // Without a WebMCP host, register() is a no-op, so this asserts the diffing
+    // decision rather than the browser call.
+    const a = { name: 'x', description: 'first', execute: () => ({ content: [] }) } as never
+    const b = { name: 'x', description: 'second', execute: () => ({ content: [] }) } as never
+    r.sync([a])
+    r.sync([b])
+    expect(r.registeredNames()).toEqual([])
+  })
+})

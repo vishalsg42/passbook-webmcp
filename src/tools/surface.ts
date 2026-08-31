@@ -2,6 +2,7 @@ import { store } from '../domain/store'
 import { registry } from '../webmcp/registry'
 import type { ToolDescriptor, ToolResult } from '../webmcp/types'
 import { ALL_TOOLS, TOOL_NAMES } from './index'
+import { currentArm, describedOnlyDuplicates } from './ablation'
 
 /**
  * The tool surface follows the state of the app.
@@ -123,9 +124,17 @@ export const explainUnavailable: ToolDescriptor<Record<string, never>> = {
  * registered and only touches the difference.
  */
 export function syncToolSurface(): void {
-  const wanted = new Set(namesFor(currentSurfaceState()))
+  const state = currentSurfaceState()
+  const wanted = new Set(namesFor(state))
   const descriptors = [explainUnavailable as unknown as ToolDescriptor<never>, ...ALL_TOOLS].filter(
     (t) => wanted.has(t.name),
   )
+
+  // Ablation arm A: the guarded tool stays registered whatever the state, with
+  // its guard expressed only in prose. Opt in with ?ablation=instruction.
+  if (currentArm() === 'instruction' && !state.hasStatement) {
+    descriptors.push(describedOnlyDuplicates as unknown as ToolDescriptor<never>)
+  }
+
   registry.sync(descriptors)
 }
