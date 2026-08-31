@@ -1,6 +1,24 @@
 import type { Paise } from './money'
 
-export type BankId = 'hdfc' | 'kotak' | 'rbl'
+/**
+ * Which bank a transaction came from.
+ *
+ * `unknown` is a real value, not a fallback dressed up as one: a CSV export
+ * rarely names its bank, and claiming it came from a specific one would be a
+ * lie sitting in the data model where nothing later can tell it is wrong.
+ */
+export type BankId = 'hdfc' | 'kotak' | 'rbl' | 'unknown'
+
+const BANK_LABELS: Record<BankId, string> = {
+  hdfc: 'HDFC Bank',
+  kotak: 'Kotak Mahindra Bank',
+  rbl: 'RBL Bank',
+  unknown: 'Unnamed bank',
+}
+
+export function bankLabel(bank: BankId): string {
+  return BANK_LABELS[bank]
+}
 
 export interface Transaction {
   id: string

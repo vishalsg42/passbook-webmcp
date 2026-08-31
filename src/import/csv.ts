@@ -1,6 +1,6 @@
 import { parseStatementDate } from '../domain/dates'
 import { isAmountToken, parsePaise } from '../domain/money'
-import type { ParseFailure, ParseResult, Transaction } from '../domain/types'
+import type { BankId, ParseFailure, ParseResult, Transaction } from '../domain/types'
 import { validateChain } from './pdf/chain'
 
 /**
@@ -146,7 +146,14 @@ export function previewCsv(text: string): CsvPreview {
 }
 
 /** Turn mapped CSV rows into transactions. */
-export function parseCsv(text: string, mapping: CsvMapping, accountId = 'csv-main'): ParseResult {
+export function parseCsv(
+  text: string,
+  mapping: CsvMapping,
+  accountId = 'csv-main',
+  /** Set when the user tells us which bank the export came from. A CSV almost
+   *  never says, so this defaults to unknown rather than guessing. */
+  bank: BankId = 'unknown',
+): ParseResult {
   const { rows } = previewCsv(text)
   const transactions: Transaction[] = []
   const failures: ParseFailure[] = []
@@ -184,7 +191,7 @@ export function parseCsv(text: string, mapping: CsvMapping, accountId = 'csv-mai
           mapping.reference !== undefined ? (row[mapping.reference] ?? '').trim() : '',
         amount,
         balance,
-        bank: 'hdfc',
+        bank,
         page: 1,
       })
     } catch (err) {

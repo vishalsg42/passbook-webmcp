@@ -2,7 +2,7 @@ import { findAll } from '../domain/anomalies'
 import { formatPaise } from '../domain/money'
 import { addCase, packValue, renderPack, updateCase } from '../domain/pack'
 import { store } from '../domain/store'
-import type { Transaction } from '../domain/types'
+import { bankLabel, type Transaction } from '../domain/types'
 import { registry } from '../webmcp/registry'
 import type { ToolDescriptor, ToolResult } from '../webmcp/types'
 
@@ -68,7 +68,7 @@ const listAccounts: ToolDescriptor<Record<string, never>> = {
       accounts: [
         {
           label: statementLabel ?? 'Imported statement',
-          bank: sorted[0].bank.toUpperCase(),
+          bank: bankLabel(sorted[0].bank),
           from: sorted[0].date,
           to: sorted[sorted.length - 1].date,
           transactions: sorted.length,

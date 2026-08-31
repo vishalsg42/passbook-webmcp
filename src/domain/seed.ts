@@ -87,7 +87,7 @@ export function seedTransactions(): Transaction[] {
       reference: row.reference,
       amount,
       balance,
-      bank: 'hdfc' as const,
+      bank: 'unknown' as const,
       page: Math.floor(index / 12) + 1,
     }
   })
