@@ -8,6 +8,8 @@ import { store } from '@/domain/store'
 import { extractTextItems } from '@/import/pdf/extract'
 import { detectProfile, parseStatement } from '@/import/pdf/parseStatement'
 import { hasTextLayer, loadPdf, PdfNoTextLayer, type PasswordReason } from '@/import/loadPdf'
+import { parseCsv, previewCsv } from '@/import/csv'
+import type { ParseResult } from '@/domain/types'
 
 type Phase = 'idle' | 'reading' | 'password' | 'parsing' | 'error'
 
@@ -33,11 +35,50 @@ export function ImportPanel() {
   const [password, setPassword] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
 
+  const commit = useCallback((file: File, result: ParseResult, sourceLabel: string) => {
+    store.update({
+      transactions: result.transactions,
+      findings: recomputeFindings(result.transactions),
+      coverage: result.coverage,
+      statementLabel: `${file.name} (${sourceLabel})`,
+    })
+    store.log({
+      actor: 'human',
+      action: `Imported ${file.name} as ${sourceLabel}`,
+      outcome: 'ok',
+      detail: `${result.coverage.rowsParsed} of ${result.coverage.rowsDetected} rows${
+        result.failures.length > 0 ? `, ${result.failures.length} unreadable` : ''
+      }`,
+    })
+    setPhase('idle')
+  }, [])
+
   const handleFile = useCallback(async (file: File) => {
     setError(null)
     setPhase('reading')
 
+    const isCsv = /\.csv$/i.test(file.name) || file.type === 'text/csv'
+
     try {
+      if (isCsv) {
+        setPhase('parsing')
+        const text = await file.text()
+        const preview = previewCsv(text)
+        if (!preview.mapping) {
+          throw new Error(
+            `${preview.problem ?? 'This CSV could not be read.'} Columns found: ${
+              preview.headers.join(', ') || 'none'
+            }.`,
+          )
+        }
+        const result = parseCsv(text, preview.mapping)
+        if (result.transactions.length === 0) {
+          throw new Error('No rows in that CSV could be read as transactions.')
+        }
+        commit(file, result, 'CSV')
+        return
+      }
+
       const pdf = await loadPdf(file, {
         requestPassword: (reason) =>
           new Promise<string>((resolve, reject) => {
@@ -68,19 +109,7 @@ export function ImportPanel() {
         )
       }
 
-      store.update({
-        transactions: result.transactions,
-        findings: recomputeFindings(result.transactions),
-        coverage: result.coverage,
-        statementLabel: `${file.name} (${profile.label})`,
-      })
-      store.log({
-        actor: 'human',
-        action: `Imported ${file.name} as ${profile.label}`,
-        outcome: 'ok',
-        detail: `${result.coverage.rowsParsed} of ${result.coverage.rowsDetected} rows, balance chain ${result.coverage.chainIntact ? 'intact' : 'broken'}`,
-      })
-      setPhase('idle')
+      commit(file, result, profile.label)
     } catch (err) {
       setRequest(null)
       setPhase('error')
@@ -92,7 +121,7 @@ export function ImportPanel() {
         detail: err instanceof Error ? err.message : undefined,
       })
     }
-  }, [])
+  }, [commit])
 
   const submitPassword = () => {
     if (!request || password === '') return
@@ -191,7 +220,7 @@ export function ImportPanel() {
                 ? phase === 'reading'
                   ? 'Opening the statement'
                   : 'Reading transactions'
-                : 'Drop your bank statement PDF here, or choose a file.'}
+                : 'Drop your bank statement here, or choose a file. PDF or CSV.'}
             </p>
             <Button onClick={() => fileInput.current?.click()} disabled={busy}>
               Choose statement
@@ -199,7 +228,7 @@ export function ImportPanel() {
             <input
               ref={fileInput}
               type="file"
-              accept="application/pdf"
+              accept=".pdf,.csv,application/pdf,text/csv"
               hidden
               onChange={(e) => {
                 const file = e.target.files?.[0]
@@ -208,7 +237,8 @@ export function ImportPanel() {
               }}
             />
             <p className="mt-4 text-[13px] text-muted">
-              HDFC, Kotak Mahindra, and RBL statements. Everything is read inside this browser
+              HDFC, Kotak Mahindra, and RBL PDFs, or a CSV export from any bank. Everything is
+              read inside this browser
               tab, and your statement is never uploaded.
             </p>
           </div>
