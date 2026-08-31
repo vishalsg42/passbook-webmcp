@@ -1,0 +1,10 @@
+node_modules
+dist
+.DS_Store
+*.local
+.env*
+
+# Never commit real financial data
+fixtures/statements/
+*.pdf
+*-statement-*.csv
