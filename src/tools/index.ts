@@ -216,15 +216,7 @@ const draftDisputeCase: ToolDescriptor<{ candidateId: string; narrative?: string
       return ok({ error: 'unknown_candidate', message: `No candidate with id ${candidateId}.` })
     }
 
-    let pack = addCase(state.pack, finding)
-    if (narrative) {
-      const added = pack.cases.find((c) => c.findingId === finding.id)
-      if (added) {
-        pack = updateCase(pack, added.id, {})
-        const target = pack.cases.find((c) => c.id === added.id)
-        if (target) target.draft = { ...target.draft, narrative }
-      }
-    }
+    const pack = addCase(state.pack, finding, narrative)
     store.update({ pack })
     store.log({ actor: 'agent', action: 'draft_dispute_case', outcome: 'ok', detail: candidateId })
 

@@ -76,16 +76,38 @@ export function draftFromFinding(finding: Finding): CaseBody {
   return { merchant, amount, dates, references, narrative }
 }
 
-export function addCase(pack: DisputePack, finding: Finding): DisputePack {
+/**
+ * Add a case for a finding, or replace the draft on one already present.
+ *
+ * Re-drafting is allowed because an agent may want a second attempt at the
+ * wording, but it only ever touches `draft`. A case the human has already
+ * committed keeps its committed body.
+ */
+export function addCase(
+  pack: DisputePack,
+  finding: Finding,
+  narrative?: string,
+): DisputePack {
   const now = new Date().toISOString()
+  const draft = draftFromFinding(finding)
+  const body = narrative ? { ...draft, narrative } : draft
+
   const existing = pack.cases.find((c) => c.findingId === finding.id)
-  if (existing) return pack
+  if (existing) {
+    if (!narrative) return pack
+    return {
+      cases: pack.cases.map((c) =>
+        c.id === existing.id ? { ...c, draft: body, updatedAt: now } : c,
+      ),
+      updatedAt: now,
+    }
+  }
 
   const next: DisputeCase = {
     id: `case-${finding.id}`,
     findingId: finding.id,
     status: 'proposed',
-    draft: draftFromFinding(finding),
+    draft: body,
     committed: null,
     createdAt: now,
     updatedAt: now,
