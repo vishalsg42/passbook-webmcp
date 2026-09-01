@@ -152,7 +152,9 @@ const getDuplicateCandidates: ToolDescriptor<{ minAmount?: number }> = {
         passbookAsks: {
           writtenBy: 'Passbook, not the bank',
           question:
-            `${unsettled.length} of these are medium confidence: the statement alone cannot tell ` +
+            (unsettled.length === 1
+              ? 'One of these is medium confidence: the statement alone cannot tell '
+              : `${unsettled.length} of these are medium confidence: the statement alone cannot tell `) +
             `whether the second charge was intended. Passbook has the ledger; it does not have the ` +
             `account holder's memory. If they know something the statement does not, that settles it.`,
           examplesOfWhatWouldSettleIt: [

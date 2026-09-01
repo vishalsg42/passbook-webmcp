@@ -6,6 +6,8 @@ An agent reads your real bank statement, finds charges you paid twice, and draft
 letters with you. You edit, accept, reject. Passbook exports a dispute pack you can send to your
 bank: a document neither you nor the agent produces alone.
 
+**Live: https://passbook-webmcp.netlify.app**
+
 Built for [The WebMCP Challenge](https://webmcp.devpost.com/). MIT licensed.
 
 > **Try it:** open Passbook in ChatGPT's in-app browser, or Chrome 149+ with
@@ -20,9 +22,12 @@ You can, and for a short statement it works fine. Passbook earns its place on
 three things, and the advantage grows with the size of the statement and how
 much the answer matters.
 
-**The statement never leaves your browser.** Uploading sends every transaction,
-balance and counterparty to a server. Here, parsing happens locally and the
-agent receives only what a tool returned.
+**Passbook sends the agent a field set, not your statement.** Uploading a PDF
+puts every transaction, balance and counterparty in front of the model. Here the
+parsing happens in the tab, and the agent receives only what a tool chose to
+return. That is data minimisation, not secrecy: tool results do reach the model,
+and the Activity panel shows the exact fields each call emitted so you can check
+it rather than take our word for it.
 
 **The numbers are computed, not read.** A model eyeballing 154 pages will
 miscount rows, misread amounts, and quietly skip pages. Passbook parsed 1,630 of
