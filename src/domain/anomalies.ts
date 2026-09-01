@@ -50,10 +50,18 @@ const NON_MERCHANT_RAILS = /^(?:ATW|NWD|ATM|EAW|CWD)[-\s]/i
  * many times is a standing arrangement, and its identical repeats are the
  * account holder's normal behaviour rather than an error.
  *
- * On the real statement, matching without this rule flagged 367 pairs, of which
- * 222 were a single investment platform and 110 another: those are recurring
- * instalments, not duplicates. Requiring the amount to be unusual FOR THAT
- * COUNTERPARTY is what separates the accident from the habit.
+ * On the real statement, holding out this rule but keeping the rail filter, the
+ * date window and the reversal check flagged 367 pairs, of which 222 were a
+ * single investment platform and 110 another: those are recurring instalments,
+ * not duplicates.
+ *
+ * Holding out the rail filter and the window as well gives 545 pairs across 85
+ * counterparties, the same two contributing 224 and 110 (re-measured
+ * 2026-09-02). Both numbers are real; they answer different questions, so quote
+ * the filters held out whenever either is cited.
+ *
+ * Requiring the amount to be unusual FOR THAT COUNTERPARTY is what separates
+ * the accident from the habit.
  */
 const MAX_OCCURRENCES_FOR_DUPLICATE = 2
 
