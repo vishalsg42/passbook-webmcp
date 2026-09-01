@@ -32,6 +32,8 @@ interface Entry {
 export class ToolRegistry {
   private entries = new Map<string, Entry>()
   private listeners = new Set<() => void>()
+  /** Tools the browser refused to register, by name, with the reason. */
+  private failures = new Map<string, string>()
 
   get available(): boolean {
     return getModelContext() !== null
@@ -62,13 +64,23 @@ export class ToolRegistry {
 
     const controller = new AbortController()
     this.entries.set(descriptor.name, { descriptor, controller })
+    this.failures.delete(descriptor.name)
 
     // Aborting the signal rejects this promise with the abort reason. That is
     // expected during a swap or an unregister, so it is swallowed rather than
     // surfaced. Any other rejection is a real bug and is reported.
     mc.registerTool(descriptor, { signal: controller.signal }).catch((err: unknown) => {
       if (controller.signal.aborted) return
+      // Reported, not just logged. A console line is invisible in an agent's
+      // in-app browser, which is exactly where a registration is most likely to
+      // fail and where the reader has no devtools to find out why. A tool that
+      // silently fails to register leaves the surface one short with no
+      // explanation.
+      const message = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+      this.failures.set(descriptor.name, message)
+      this.entries.delete(descriptor.name)
       console.error(`[passbook] registerTool failed for "${descriptor.name}"`, err)
+      this.emit()
     })
 
     this.emit()
@@ -122,17 +134,35 @@ export class ToolRegistry {
     }
   }
 
-  /** Invoke a registered tool through the browser, exactly as an agent would.
-   *  This is both the in-page agent path and the day-one verification path.
+  /**
+   * Invoke a registered tool through the browser, exactly as an agent would.
+   * This is both the in-page agent path and the day-one verification path.
    *
-   *  Verified against Chrome 151: `executeTool` takes its arguments as a JSON
-   *  **string**. Passing a plain object rejects with
-   *  `UnknownError: Failed to parse input arguments`. The browser parses the
-   *  string and hands the resulting object to `execute`.
+   * Implementations disagree about the argument type, so it is negotiated
+   * rather than assumed. Both halves are measured, not guessed:
    *
-   *  The tool must also be the `RegisteredTool` returned by `getTools()`. It
-   *  carries a required `origin` member, and a hand-built object literal throws
-   *  a TypeError before execution is attempted. */
+   *   Chrome 151          wants a JSON **string**. An object rejects with
+   *                       `UnknownError: Failed to parse input arguments`.
+   *   In-app browser      wants an **object**. A string rejects with
+   *                       `WebMCP executeTool requires an object input.`
+   *
+   * The first successful form is remembered, so at most one call ever pays for
+   * the probe. Retrying is only safe because both rejections happen while
+   * validating the input, before `execute` runs, so nothing was performed on
+   * the first attempt. The retry is therefore gated on the error actually
+   * looking like an input-shape complaint: retrying a mutating tool on any
+   * other error could draft the same dispute twice.
+   *
+   * The tool must also be the `RegisteredTool` returned by `getTools()`. It
+   * carries a required `origin` member, and a hand-built object literal throws
+   * a TypeError before execution is attempted.
+   */
+  private argumentForm: 'string' | 'object' | null = null
+
+  /** Rejections that mean "wrong argument type", not "your call failed". */
+  private static readonly SHAPE_COMPLAINT =
+    /requires an object|failed to parse input arguments|must be an object|expected an object|not a valid json/i
+
   async invoke(name: string, input: unknown): Promise<string> {
     const mc = getModelContext()
     if (!mc) throw new Error('WebMCP unavailable')
@@ -143,7 +173,40 @@ export class ToolRegistry {
       // UnknownError when the name is absent from the live map.
       throw new Error(`Tool "${name}" is not registered`)
     }
-    return mc.executeTool(tool, JSON.stringify(input ?? {}))
+
+    const args = (input ?? {}) as object
+    const forms: ('string' | 'object')[] = this.argumentForm
+      ? [this.argumentForm]
+      : ['string', 'object']
+
+    let lastError: unknown
+    for (const form of forms) {
+      try {
+        const result = await mc.executeTool(
+          tool,
+          (form === 'string' ? JSON.stringify(args) : args) as string,
+        )
+        this.argumentForm = form
+        // Chrome resolves to a JSON string. An implementation that resolves to
+        // an object is normalised here so callers have one shape to parse.
+        return typeof result === 'string' ? result : JSON.stringify(result)
+      } catch (err) {
+        lastError = err
+        const message = err instanceof Error ? err.message : String(err)
+        if (!ToolRegistry.SHAPE_COMPLAINT.test(message)) throw err
+      }
+    }
+    throw lastError
+  }
+
+  /** Which argument form this browser accepted, once known. */
+  get executeToolArgumentForm(): 'string' | 'object' | null {
+    return this.argumentForm
+  }
+
+  /** Registration failures the browser reported, newest state, by tool name. */
+  registrationFailures(): { name: string; reason: string }[] {
+    return [...this.failures].map(([name, reason]) => ({ name, reason }))
   }
 
   onChange(listener: () => void): () => void {

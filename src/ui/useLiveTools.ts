@@ -27,10 +27,12 @@ import type { RegisteredTool } from '@/webmcp/types'
 export function useLiveTools(): {
   tools: RegisteredTool[]
   error: string | null
+  failures: { name: string; reason: string }[]
   refresh: () => void
 } {
   const [tools, setTools] = useState<RegisteredTool[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [failures, setFailures] = useState<{ name: string; reason: string }[]>([])
 
   const load = useCallback(async () => {
     try {
@@ -39,6 +41,7 @@ export function useLiveTools(): {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     }
+    setFailures(registry.registrationFailures())
   }, [])
 
   useEffect(() => {
@@ -52,5 +55,5 @@ export function useLiveTools(): {
     }
   }, [load])
 
-  return { tools, error, refresh: () => void load() }
+  return { tools, error, failures, refresh: () => void load() }
 }

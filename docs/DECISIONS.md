@@ -80,6 +80,14 @@ Verified in `index.bs` (79,561 bytes) unless noted.
   **operations** (`registerTool`, `getTools`, `executeTool`), not the property, and treat an
   incomplete object as no context at all. Reading the property can also throw, since
   `ModelContext` is `[SecureContext]` and rejects when the cluster is not origin-keyed.
+- **`executeTool` argument type is NOT portable.** Chrome 151 requires a JSON **string** and
+  rejects an object with `UnknownError: Failed to parse input arguments`. An agent's in-app
+  browser requires an **object** and rejects a string with
+  `WebMCP executeTool requires an object input.` Negotiate the form, do not assume one. Both
+  rejections happen while validating input, before `execute` runs, so a retry is safe when the
+  error is a shape complaint and unsafe otherwise.
+- **The result type is not portable either.** Chrome resolves `executeTool` to a JSON string;
+  normalise before parsing.
 - Calling a removed tool rejects with **`UnknownError`**, revocation is provable deterministically
   from the page.
 - `registerTool` mutates the tool map **synchronously**; `InvalidStateError` on a duplicate name

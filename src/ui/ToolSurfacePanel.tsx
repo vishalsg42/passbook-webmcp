@@ -14,7 +14,7 @@ import { useLiveTools } from './useLiveTools'
  * what an agent can currently call.
  */
 export function ToolSurfacePanel() {
-  const { tools, error, refresh } = useLiveTools()
+  const { tools, error, failures, refresh } = useLiveTools()
 
   return (
     <Card>
@@ -29,6 +29,13 @@ export function ToolSurfacePanel() {
 
       <CardContent className="p-0">
         {error && <p className="px-5 py-4 text-[13px] text-danger">getTools failed: {error}</p>}
+
+        {failures.map((f) => (
+          <p key={f.name} className="m-0 border-b border-line px-5 py-3 text-[13px] text-danger">
+            <code className="num">{f.name}</code> could not be registered by this browser:{' '}
+            {f.reason}
+          </p>
+        ))}
 
         {tools.length === 0 && !error && (
           <p className="px-5 py-8 text-center text-[14px] text-muted">
