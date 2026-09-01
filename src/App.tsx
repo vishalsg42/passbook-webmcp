@@ -2,11 +2,9 @@ import { useEffect } from 'react'
 import { BookText, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { store } from '@/domain/store'
-import { recomputeFindings } from '@/tools'
+import { loadDemoStatement } from '@/domain/demo'
 import { syncToolSurface } from '@/tools/surface'
 import { currentArm, instructionBreaches } from '@/tools/ablation'
-import { SEED_LABEL, seedTransactions } from '@/domain/seed'
-import { validateChain } from '@/import/pdf/chain'
 import { getModelContextError, isWebMCPAvailable } from '@/webmcp/types'
 import { AgentPanel } from './ui/AgentPanel'
 import { AuditPanel } from './ui/AuditPanel'
@@ -31,30 +29,9 @@ export function App() {
     const unsubscribe = store.subscribe(syncToolSurface)
 
     // Load the demo statement on a first visit so the app is never an empty
-    // shell. Anything already imported or restored from storage wins.
-    if (store.get().transactions.length === 0) {
-      const seeded = seedTransactions()
-      const { segments, intact } = validateChain(seeded)
-      store.update({
-        transactions: seeded,
-        findings: recomputeFindings(seeded),
-        coverage: {
-          rowsDetected: seeded.length,
-          rowsParsed: seeded.length,
-          failures: 0,
-          chainIntact: intact,
-          chainSegments: segments,
-          pageCount: Math.ceil(seeded.length / 12),
-        },
-        statementLabel: SEED_LABEL,
-      })
-      store.log({
-        actor: 'human',
-        action: 'Loaded the demo statement',
-        outcome: 'ok',
-        detail: `${seeded.length} sample transactions`,
-      })
-    }
+    // shell. Anything already imported or restored from storage wins. After a
+    // Start over this does not re-run, by design: see the note in demo.ts.
+    if (store.get().transactions.length === 0) loadDemoStatement()
 
     return unsubscribe
   }, [])

@@ -9,7 +9,9 @@ import { extractTextItems } from '@/import/pdf/extract'
 import { detectProfile, parseStatement } from '@/import/pdf/parseStatement'
 import { hasTextLayer, loadPdf, PdfNoTextLayer, type PasswordReason } from '@/import/loadPdf'
 import { parseCsv, previewCsv } from '@/import/csv'
+import { loadDemoStatement } from '@/domain/demo'
 import type { ParseResult } from '@/domain/types'
+import { useStore } from './useStore'
 
 type Phase = 'idle' | 'reading' | 'password' | 'parsing' | 'error'
 
@@ -34,6 +36,7 @@ export function ImportPanel() {
   const [request, setRequest] = useState<PasswordRequest | null>(null)
   const [password, setPassword] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
+  const empty = useStore().transactions.length === 0
 
   const commit = useCallback((file: File, result: ParseResult, sourceLabel: string) => {
     store.update({
@@ -222,9 +225,19 @@ export function ImportPanel() {
                   : 'Reading transactions'
                 : 'Drop your bank statement here, or choose a file. PDF or CSV.'}
             </p>
-            <Button onClick={() => fileInput.current?.click()} disabled={busy}>
-              Choose statement
-            </Button>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Button onClick={() => fileInput.current?.click()} disabled={busy}>
+                Choose statement
+              </Button>
+              {/* The way back from Start over. Reset deliberately does not
+                  re-seed, because the empty surface is where revocation is
+                  visible, so the demo has to be reloadable on purpose. */}
+              {empty && (
+                <Button variant="outline" onClick={loadDemoStatement} disabled={busy}>
+                  Load the demo statement
+                </Button>
+              )}
+            </div>
             <input
               ref={fileInput}
               type="file"
