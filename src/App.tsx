@@ -7,7 +7,7 @@ import { syncToolSurface } from '@/tools/surface'
 import { currentArm, instructionBreaches } from '@/tools/ablation'
 import { SEED_LABEL, seedTransactions } from '@/domain/seed'
 import { validateChain } from '@/import/pdf/chain'
-import { isWebMCPAvailable } from '@/webmcp/types'
+import { getModelContextError, isWebMCPAvailable } from '@/webmcp/types'
 import { AgentPanel } from './ui/AgentPanel'
 import { AuditPanel } from './ui/AuditPanel'
 import { FindingsPanel } from './ui/FindingsPanel'
@@ -20,6 +20,7 @@ import { useStore } from './ui/useStore'
 export function App() {
   const { transactions, statementLabel } = useStore()
   const webmcp = isWebMCPAvailable()
+  const webmcpError = getModelContextError()
   const persistError = store.persistError
 
   useEffect(() => {
@@ -109,6 +110,12 @@ export function App() {
             Everything still works by hand. To let your own agent drive it, open this page in
             ChatGPT&rsquo;s in-app browser, or in Chrome 149+ with{' '}
             <code className="num">chrome://flags/#enable-webmcp-testing</code> enabled.
+            {webmcpError && (
+              <span className="mt-1.5 block">
+                This browser exposes the API but refused to hand it over:{' '}
+                <code className="num">{webmcpError}</code>
+              </span>
+            )}
           </div>
         </div>
       )}

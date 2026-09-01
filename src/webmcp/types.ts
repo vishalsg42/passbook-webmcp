@@ -75,15 +75,42 @@ export function isValidToolName(name: string): boolean {
   return name.length > 0 && name.length <= MAX_TOOL_NAME_LENGTH && TOOL_NAME_PATTERN.test(name)
 }
 
-/** Feature-detect the model context. Returns null when WebMCP is unavailable,
- *  so the app can degrade to full manual use behind a capability banner. */
+/** Why the model context could not be read, when it could not be read. Set on
+ *  the first failing access so the capability banner can state a reason rather
+ *  than implying the browser simply lacks the feature. */
+let modelContextError: string | null = null
+
+export function getModelContextError(): string | null {
+  return modelContextError
+}
+
+/**
+ * Feature-detect the model context. Returns null when WebMCP is unavailable,
+ * so the app can degrade to full manual use behind a capability banner.
+ *
+ * Reading the property is wrapped because it is not a plain data property.
+ * ModelContext is [SecureContext] and its operations reject when the agent
+ * cluster is not origin-keyed, so an embedded browser can expose the name and
+ * still throw on access. This function is called during render, so an
+ * unguarded throw there unmounts the tree and produces a blank page in exactly
+ * the environment the app most needs to survive: an agent's in-app browser,
+ * where there is no console to read the reason from.
+ *
+ * Degrading is the documented behaviour. Failing to read the context must cost
+ * the agent, never the product.
+ */
 export function getModelContext(): ModelContext | null {
   if (typeof document === 'undefined') return null
-  const fromDocument = (document as unknown as { modelContext?: ModelContext }).modelContext
-  if (fromDocument) return fromDocument
-  // Older builds exposed this on navigator. Kept only as a fallback.
-  const fromNavigator = (navigator as unknown as { modelContext?: ModelContext }).modelContext
-  return fromNavigator ?? null
+  try {
+    const fromDocument = (document as unknown as { modelContext?: ModelContext }).modelContext
+    if (fromDocument) return fromDocument
+    // Older builds exposed this on navigator. Kept only as a fallback.
+    const fromNavigator = (navigator as unknown as { modelContext?: ModelContext }).modelContext
+    return fromNavigator ?? null
+  } catch (err) {
+    modelContextError = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+    return null
+  }
 }
 
 export function isWebMCPAvailable(): boolean {
