@@ -4,9 +4,114 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Passbook</title>
+    <meta
+      name="description"
+      content="An agent audits your bank statements, finds charges you paid twice, and drafts the dispute letters with you."
+    />
+    <style>
+      /*
+        Boot shell. Inlined rather than imported so it renders before any
+        module loads, and survives the case where no module loads at all.
+
+        Passbook is meant to be opened inside an agent's in-app browser, where
+        there is no devtools panel and no console. A white page there is
+        undiagnosable by the person looking at it, so the page has to report
+        its own failure on the page itself.
+      */
+      #boot {
+        font: 15px/1.55 ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        color: #0f172a;
+        max-width: 34rem;
+        margin: 12vh auto;
+        padding: 0 1.5rem;
+      }
+      #boot h1 {
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+      }
+      #boot p {
+        margin: 0 0 0.75rem;
+        color: #52607a;
+      }
+      #boot pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #f6f7f9;
+        border: 1px solid #e3e7ee;
+        border-radius: 10px;
+        padding: 0.75rem;
+        font-size: 12.5px;
+        color: #b3261e;
+        margin: 0;
+      }
+      #boot-error {
+        display: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="boot">
+        <h1>Passbook</h1>
+        <p id="boot-status">Loading.</p>
+        <noscript>
+          <p>
+            Passbook reads your statement inside this browser tab, so it needs JavaScript enabled.
+            Nothing is uploaded either way.
+          </p>
+        </noscript>
+        <div id="boot-error">
+          <p>
+            Passbook did not start in this browser. The error below is the reason. Opening the same
+            URL in Chrome 149 or later, with
+            <code>chrome://flags/#enable-webmcp-testing</code> enabled, is the supported fallback.
+          </p>
+          <pre id="boot-error-text"></pre>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      /*
+        Capture anything that goes wrong before or during mount and show it.
+        React replaces #root's children on a successful mount, which removes
+        this shell, so whatever is still on screen after load is the truth.
+      */
+      ;(function () {
+        var shown = false
+        function report(message) {
+          if (shown) return
+          shown = true
+          var status = document.getElementById('boot-status')
+          var box = document.getElementById('boot-error')
+          var text = document.getElementById('boot-error-text')
+          if (!status || !box || !text) return
+          status.textContent = 'Passbook could not start.'
+          box.style.display = 'block'
+          text.textContent = String(message)
+        }
+
+        window.addEventListener('error', function (event) {
+          report(event.message + (event.filename ? '\n' + event.filename + ':' + event.lineno : ''))
+        })
+        window.addEventListener('unhandledrejection', function (event) {
+          report(
+            (event.reason && (event.reason.stack || event.reason.message)) || String(event.reason),
+          )
+        })
+
+        // A module that never executes fires no error event, which is what an
+        // unsupported syntax or a blocked script looks like. Time it out.
+        window.setTimeout(function () {
+          if (document.getElementById('boot')) {
+            report(
+              'The application script did not run within 12 seconds. This browser may not support the JavaScript or CSS features Passbook is built with, or the script was blocked.',
+            )
+          }
+        }, 12000)
+      })()
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
