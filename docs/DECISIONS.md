@@ -72,6 +72,9 @@ Verified in `index.bs` (79,561 bytes) unless noted.
   Listen on `document`, never on the `ModelContext`. Chrome's `ModelContext` happens to be an
   `EventTarget` so the wrong target works there; an agent's in-app browser exposed one that is
   **not**, and `mc.addEventListener` threw `TypeError: not a function`, taking the page down.
+  Measured on Chrome 151: a page changing **its own** tool map fired **no** `toolchange` on the
+  Document at all, across a 7 tool to 2 tool swap. So the listener is a safety net, never the
+  refresh mechanism. The page's own registry notification is what the UI must depend on.
 - **`document.modelContext` being present does not mean it is usable.** Measured in an agent's
   in-app browser: the property existed and the object lacked `EventTarget`. Feature-detect the
   **operations** (`registerTool`, `getTools`, `executeTool`), not the property, and treat an
