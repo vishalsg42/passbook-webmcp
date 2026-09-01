@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CalendarClock, FilePlus2, ShieldCheck, TrendingDown, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
 import type { Finding } from '@/domain/anomalies'
 import { formatPaise } from '@/domain/money'
 import { addCase, updateCase } from '@/domain/pack'
@@ -112,6 +114,9 @@ export function FindingsPanel() {
 }
 
 function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }) {
+  const [dismissing, setDismissing] = useState(false)
+  const [reason, setReason] = useState('')
+
   const draft = () => {
     store.update({ pack: addCase(store.get().pack, finding) })
     store.log({ actor: 'human', action: `Drafted a case for ${finding.title}`, outcome: 'ok' })
@@ -119,20 +124,28 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
 
   // The human equivalent of the agent's dismiss_candidate tool. Every tool has
   // to be doable by clicking, or the agent can reach states a person cannot.
-  const dismiss = () => {
+  //
+  // dismiss_candidate requires a reason, so this has to be able to carry one
+  // too. Without it the page asks the account holder what it does not know and
+  // then gives them nowhere to say it, and every human dismissal lands in the
+  // pack under the same constant sentence.
+  const dismiss = (reason: string) => {
     const state = store.get()
+    const rejectionReason = reason.trim() === '' ? 'Dismissed by the account holder' : reason.trim()
     const existing = state.pack.cases.find((c) => c.findingId === finding.id)
     const pack = existing
-      ? updateCase(state.pack, existing.id, {
-          status: 'rejected',
-          rejectionReason: 'Dismissed by the account holder',
-        })
+      ? updateCase(state.pack, existing.id, { status: 'rejected', rejectionReason })
       : updateCase(addCase(state.pack, finding), `case-${finding.id}`, {
           status: 'rejected',
-          rejectionReason: 'Dismissed by the account holder',
+          rejectionReason,
         })
     store.update({ pack })
-    store.log({ actor: 'human', action: `Dismissed ${finding.title}`, outcome: 'ok' })
+    store.log({
+      actor: 'human',
+      action: `Dismissed ${finding.title}`,
+      outcome: 'ok',
+      detail: rejectionReason,
+    })
   }
 
   return (
@@ -180,13 +193,43 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
           <FilePlus2 />
           {drafted ? 'In the dispute pack' : 'Draft a dispute letter'}
         </Button>
-        {!drafted && (
-          <Button size="sm" variant="ghost" onClick={dismiss}>
+        {!drafted && !dismissing && (
+          <Button size="sm" variant="ghost" onClick={() => setDismissing(true)}>
             <X />
             Not a duplicate
           </Button>
         )}
       </div>
+
+      {dismissing && (
+        <div className="mt-3 rounded-[10px] border border-line bg-muted-bg p-3">
+          <label
+            htmlFor={`why-${finding.id}`}
+            className="mb-2 block text-[13px] font-medium text-ink"
+          >
+            Why is this not a duplicate?
+          </label>
+          <Input
+            id={`why-${finding.id}`}
+            value={reason}
+            autoFocus
+            placeholder="I meant to pay twice"
+            onChange={(e) => setReason(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && dismiss(reason)}
+          />
+          <p className="mb-0 mt-2 text-[12.5px] text-muted">
+            Kept with the case, so the pack records why it was set aside. Optional.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => dismiss(reason)}>
+              Not a duplicate
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setDismissing(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
