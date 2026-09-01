@@ -91,6 +91,9 @@ tools discoverable through `getTools()`, and two consecutive `executeTool` invoc
 Two API facts that cost time and are worth keeping:
 - `executeTool` takes its arguments as a **JSON string**. Passing an object rejects with
   `UnknownError: Failed to parse input arguments`.
+- `executeTool` also **resolves to a JSON string**, not an object. The tool result is reached by
+  parsing twice: `JSON.parse(JSON.parse(raw).content[0].text)`. `registry.invoke` returns
+  `Promise<string>` for this reason. Verified on the deployed origin, Chrome 151.
 - The tool passed to `executeTool` must be the object `getTools()` returned; it carries a required
   `origin` member, and a hand-built literal throws a `TypeError` before execution.
 

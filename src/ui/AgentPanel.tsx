@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Check, Copy, Play, Terminal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { ALL_TOOLS } from '@/tools'
 import { registry } from '@/webmcp/registry'
+import { useLiveTools } from './useLiveTools'
 import { useStore } from './useStore'
 
 const PROMPTS = [
@@ -21,14 +21,18 @@ const PROMPTS = [
  * Chrome with WebMCP enabled, calling the tools this page registers. The
  * prompts below are written to be pasted there.
  *
- * The tool console underneath is a fallback and an inspector. It calls the same
- * tools through getTools and executeTool, which the spec provides for in page
- * agents, so the tools can be exercised even in a browser without WebMCP
- * support. It is deliberately not dressed up as a chat: the agent in this
- * product is the reader's, not one this page ships.
+ * The tool console underneath is a fallback and an inspector for when no agent
+ * is driving the page. It calls getTools and executeTool exactly as an agent
+ * would, so it exercises the real path rather than a parallel one. That also
+ * means it needs WebMCP: without a ModelContext there is no tool map to read
+ * and the console lists nothing. Every tool it offers is reachable by clicking
+ * elsewhere in the app, so a browser without WebMCP loses the agent, not the
+ * product. It is deliberately not dressed up as a chat: the agent here is the
+ * reader's, not one this page ships.
  */
 export function AgentPanel() {
   const { transactions } = useStore()
+  const { tools: liveTools } = useLiveTools()
   const [copied, setCopied] = useState<string | null>(null)
 
   const copy = async (prompt: string) => {
@@ -50,7 +54,9 @@ export function AgentPanel() {
       <CardContent className="border-b border-line py-4">
         <p className="m-0 text-[13px] text-muted">
           Open this page in ChatGPT&rsquo;s in-app browser, or Chrome with WebMCP enabled, and ask
-          in your own words. Passbook publishes {ALL_TOOLS.length} tools your agent can call.
+          in your own words. Passbook publishes {liveTools.length}{' '}
+          {liveTools.length === 1 ? 'tool' : 'tools'} right now, and that number changes as you
+          work: a tool that does not apply yet is not registered at all.
         </p>
       </CardContent>
 
@@ -80,11 +86,20 @@ export function AgentPanel() {
 }
 
 function ToolConsole({ disabled }: { disabled: boolean }) {
-  const [tool, setTool] = useState(ALL_TOOLS[0]?.name ?? '')
+  const { tools: liveTools } = useLiveTools()
+  const [tool, setTool] = useState('')
   const [args, setArgs] = useState('{}')
   const [output, setOutput] = useState<string | null>(null)
   const [failed, setFailed] = useState(false)
   const [running, setRunning] = useState(false)
+
+  // The surface changes as the app changes state, so a name selected earlier
+  // can stop being registered. Fall back to the first live tool rather than
+  // leaving a selection that would fail with "not registered".
+  useEffect(() => {
+    if (liveTools.length === 0) return
+    if (!liveTools.some((t) => t.name === tool)) setTool(liveTools[0].name)
+  }, [liveTools, tool])
 
   const run = async () => {
     setRunning(true)
@@ -119,7 +134,7 @@ function ToolConsole({ disabled }: { disabled: boolean }) {
           onChange={(e) => setTool(e.target.value)}
           className="num h-10 min-w-52 flex-1 cursor-pointer rounded-[10px] border border-line bg-surface px-3 text-[13px]"
         >
-          {ALL_TOOLS.map((t) => (
+          {liveTools.map((t) => (
             <option key={t.name} value={t.name}>
               {t.name}
             </option>

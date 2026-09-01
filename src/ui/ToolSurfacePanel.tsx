@@ -1,10 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
 import { RefreshCw, Wrench } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { registry } from '@/webmcp/registry'
-import { getModelContext, type RegisteredTool } from '@/webmcp/types'
+import { useLiveTools } from './useLiveTools'
 
 /**
  * What the browser actually has registered, read back through getTools.
@@ -16,29 +14,7 @@ import { getModelContext, type RegisteredTool } from '@/webmcp/types'
  * what an agent can currently call.
  */
 export function ToolSurfacePanel() {
-  const [tools, setTools] = useState<RegisteredTool[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  const refresh = useCallback(async () => {
-    try {
-      setTools(await registry.getLiveTools())
-      setError(null)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    }
-  }, [])
-
-  useEffect(() => {
-    void refresh()
-    const unsubscribe = registry.onChange(() => void refresh())
-    const mc = getModelContext()
-    const onToolChange = () => void refresh()
-    mc?.addEventListener('toolchange', onToolChange)
-    return () => {
-      unsubscribe()
-      mc?.removeEventListener('toolchange', onToolChange)
-    }
-  }, [refresh])
+  const { tools, error, refresh } = useLiveTools()
 
   return (
     <Card>
@@ -46,7 +22,7 @@ export function ToolSurfacePanel() {
         <Wrench className="size-4 text-muted" aria-hidden />
         <CardTitle>Tools your agent can call</CardTitle>
         <span className="num text-[13px] text-muted">{tools.length}</span>
-        <Button size="icon" variant="ghost" onClick={() => void refresh()} aria-label="Refresh tool list">
+        <Button size="icon" variant="ghost" onClick={refresh} aria-label="Refresh tool list">
           <RefreshCw />
         </Button>
       </CardHeader>
