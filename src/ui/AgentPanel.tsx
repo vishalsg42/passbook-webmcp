@@ -98,7 +98,12 @@ function ToolConsole({ disabled }: { disabled: boolean }) {
   // leaving a selection that would fail with "not registered".
   useEffect(() => {
     if (liveTools.length === 0) return
-    if (!liveTools.some((t) => t.name === tool)) setTool(liveTools[0].name)
+    if (liveTools.some((t) => t.name === tool)) return
+    // Default to something read only. The live list is alphabetical, which
+    // would otherwise open the console on dismiss_candidate and invite a
+    // mutating first click from someone who is only looking around.
+    const safe = liveTools.find((t) => t.annotations?.readOnlyHint) ?? liveTools[0]
+    setTool(safe.name)
   }, [liveTools, tool])
 
   const run = async () => {
