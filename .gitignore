@@ -9,3 +9,6 @@ fixtures/statements/
 *.pdf
 *-statement-*.csv
 tsconfig.tsbuildinfo
+
+# Local Netlify folder
+.netlify
