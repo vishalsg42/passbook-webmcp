@@ -32,6 +32,7 @@ sub-3-minute video alone.
 | 7 | Developer tooling | Chrome owns it: Model Context Tool Inspector, WebMCP Evals, a polyfill, `webmcp-studio`, plus Latch / webmcpify / WebMCP Kit / WindTunnel already on Chrome's curated list |
 | 8 | Security auditor ("Lighthouse for agent-readiness") | Chrome ships a **Lighthouse "Agentic Browsing"** audit category; `munzzyy/webmcp-lint` was pushed the day before; `audit.wordlift.io` is the concept *and* the theme-fit mitigation, already on Chrome's own awesome list; ~40 audit-lane repos since Aug 1 |
 | 9 | Read-side scope control | Most crowded lane in the hackathon. `sabahattink/sealed` ships the thesis verbatim. Also philosophically leaky, narrowing removes a capability but removes nothing from the agent's context |
+| 10 | Session-authored tools ("the page publishes a tool learned from your decisions") | Verified working on Chrome 151 (runtime `registerTool` appears in `getTools()`, executes, revokes) and **still cut**: it fires only when the same decision is made twice about the same counterparty, and the real statements contain **no repeat-offender merchant at all**, 9 findings across 9 distinct merchants. The only way to demo it was four seed rows written to make it fire, on a project whose stated moat is real data. Also, with `toolchange` firing zero times, the only way to tell a live agent about the new tool is a prose note in a tool result, which is the enforcement-by-instruction pattern this project measures failing 18/18 |
 
 ## Claims that were falsified along the way
 
@@ -59,9 +60,16 @@ These were asserted with confidence and turned out to be wrong. Do not resurrect
   `clawroom`, `dealpilot`, runs on synthetic data and none produces an artifact the user keeps.
   They cannot retrofit real bank statements in two days.
 - **The data, verified by parsing:** HDFC 154pp / 1,630 rows / **100% reference-column coverage**;
-  Kotak 6pp / 101; RBL 7pp / 150. **31 duplicate-charge candidates.** Only 10 fixed-amount
-  recurring merchants in HDFC and **zero** in Kotak and RBL, so subscription price hikes do not
-  exist in this data and must never be scripted.
+  Kotak 107 rows; RBL 143. Only 10 fixed-amount recurring merchants in HDFC and **zero** in Kotak
+  and RBL, so subscription price hikes do not exist in this data and must never be scripted.
+- **Duplicate findings, re-measured 2026-09-02: 9, all HDFC** (2 high confidence, 7 medium, 4 same
+  day). Zero in Kotak, zero in RBL. An earlier note in this file said 31; that was counted before
+  reversal-pair exclusion, `MAX_OCCURRENCES_FOR_DUPLICATE`, and the non-merchant rail filter
+  existed. Each of those removed false positives, so 9 is the better number and 31 was never
+  right. **Do not cite 31 anywhere.**
+- **There is no repeat-offender merchant in the real data.** The 9 findings span **9 distinct
+  counterparties**; not one merchant double-charged twice across the whole year. Measured on all
+  three statements, 2026-09-02. This killed concept #10 below.
 
 ## Spec facts that constrain the build
 

@@ -164,6 +164,17 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
         {finding.reasoning}
       </p>
 
+      {/* The human half of the question get_duplicate_candidates puts to the
+          agent. Passbook has the ledger and not the account holder's memory, so
+          on a medium confidence candidate it says so to whoever is looking,
+          rather than only to the agent. */}
+      {finding.confidence === 'medium' && !drafted && (
+        <p className="mt-2 px-3 text-[13px] text-muted">
+          Passbook cannot settle this one from the statement alone. If you remember something it
+          does not &mdash; you meant to pay twice, or a refund was promised &mdash; that decides it.
+        </p>
+      )}
+
       <div className="mt-3 flex flex-wrap gap-2">
         <Button size="sm" variant={drafted ? 'ghost' : 'outline'} onClick={draft} disabled={drafted}>
           <FilePlus2 />

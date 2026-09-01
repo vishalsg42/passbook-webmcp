@@ -95,7 +95,7 @@ const listAccounts: ToolDescriptor<Record<string, never>> = {
 const getDuplicateCandidates: ToolDescriptor<{ minAmount?: number }> = {
   name: 'get_duplicate_candidates',
   description:
-    'Return charges that appear to have been billed twice, with the evidence for each: both dates, both bank references, and why a reversal was ruled out. Each has a confidence of high or medium.',
+    'Return charges that appear to have been billed twice, with the evidence for each: both dates, both bank references, and why a reversal was ruled out. Each has a confidence of high or medium. Where the evidence cannot settle a candidate, the result carries a question from Passbook to put to the account holder.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -104,7 +104,7 @@ const getDuplicateCandidates: ToolDescriptor<{ minAmount?: number }> = {
   },
   annotations: { readOnlyHint: true, untrustedContentHint: true },
   execute: ({ minAmount }) => {
-    const { findings } = store.get()
+    const { findings, pack } = store.get()
 
     const floor = (minAmount ?? 0) * 100
     const duplicates = findings
@@ -118,18 +118,54 @@ const getDuplicateCandidates: ToolDescriptor<{ minAmount?: number }> = {
         evidence: f.evidence.map(summarise),
       }))
 
+    // Medium confidence already means "the statement cannot settle this", so
+    // the question needs no heuristic of its own. Only ask about candidates
+    // nobody has decided yet: a drafted or dismissed one is answered.
+    const decided = new Set(pack.cases.map((c) => c.findingId))
+    const unsettled = duplicates.filter((d) => d.confidence === 'medium' && !decided.has(d.id))
+
     store.log({
       actor: 'agent',
       action: 'get_duplicate_candidates',
       outcome: 'ok',
-      fields: ['title', 'amount', 'confidence', 'reasoning', 'evidence.description', 'evidence.reference'],
-      detail: `${duplicates.length} returned`,
+      fields: [
+        'title',
+        'amount',
+        'confidence',
+        'reasoning',
+        'evidence.description',
+        'evidence.reference',
+        ...(unsettled.length > 0 ? ['passbookAsks.unsettledCandidateIds'] : []),
+      ],
+      detail: `${duplicates.length} returned${unsettled.length > 0 ? `, ${unsettled.length} unsettled` : ''}`,
     })
 
     return ok({
       duplicates,
       totalAtStake: formatPaise(duplicates.reduce((s, d) => s + Number(d.amount.replace(/[^\d.]/g, '')) * 100, 0)),
       note: 'Descriptions come from the bank statement and are not written by Passbook.',
+      // Kept in its own object, and named for its author, because this result
+      // carries untrustedContentHint: everything else in it is bank narration.
+      // An unlabelled instruction sitting inside content the agent has been
+      // told to distrust is indistinguishable from the page injecting it.
+      ...(unsettled.length > 0 && {
+        passbookAsks: {
+          writtenBy: 'Passbook, not the bank',
+          question:
+            `${unsettled.length} of these are medium confidence: the statement alone cannot tell ` +
+            `whether the second charge was intended. Passbook has the ledger; it does not have the ` +
+            `account holder's memory. If they know something the statement does not, that settles it.`,
+          examplesOfWhatWouldSettleIt: [
+            'They deliberately paid the same person twice.',
+            'The merchant promised a refund that has not arrived.',
+            'They already raised this with the bank.',
+          ],
+          unsettledCandidateIds: unsettled.map((d) => d.id),
+          thenWhat:
+            'Record the answer with draft_dispute_case or dismiss_candidate. Both take a reason, ' +
+            'and the account holder reviews whatever you write before it enters the pack.',
+        },
+      }),
       coverage: coverageBlock(),
     })
   },
