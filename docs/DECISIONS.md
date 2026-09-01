@@ -69,6 +69,14 @@ Verified in `index.bs` (79,561 bytes) unless noted.
 
 - `toolchange` fires at **Documents**, not the agent (:337). Observation timing is
   *"implementation-defined"* (:1402). **Never depend on the agent noticing anything promptly.**
+  Listen on `document`, never on the `ModelContext`. Chrome's `ModelContext` happens to be an
+  `EventTarget` so the wrong target works there; an agent's in-app browser exposed one that is
+  **not**, and `mc.addEventListener` threw `TypeError: not a function`, taking the page down.
+- **`document.modelContext` being present does not mean it is usable.** Measured in an agent's
+  in-app browser: the property existed and the object lacked `EventTarget`. Feature-detect the
+  **operations** (`registerTool`, `getTools`, `executeTool`), not the property, and treat an
+  incomplete object as no context at all. Reading the property can also throw, since
+  `ModelContext` is `[SecureContext]` and rejects when the cluster is not origin-keyed.
 - Calling a removed tool rejects with **`UnknownError`**, revocation is provable deterministically
   from the page.
 - `registerTool` mutates the tool map **synchronously**; `InvalidStateError` on a duplicate name

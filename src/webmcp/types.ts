@@ -84,33 +84,57 @@ export function getModelContextError(): string | null {
   return modelContextError
 }
 
+/** The operations Passbook actually calls. An object missing any of them
+ *  cannot drive the app, so it is treated as no context at all. */
+const REQUIRED_OPERATIONS = ['registerTool', 'getTools', 'executeTool'] as const
+
 /**
- * Feature-detect the model context. Returns null when WebMCP is unavailable,
- * so the app can degrade to full manual use behind a capability banner.
+ * Detect a model context that is actually usable.
  *
- * Reading the property is wrapped because it is not a plain data property.
- * ModelContext is [SecureContext] and its operations reject when the agent
- * cluster is not origin-keyed, so an embedded browser can expose the name and
- * still throw on access. This function is called during render, so an
- * unguarded throw there unmounts the tree and produces a blank page in exactly
- * the environment the app most needs to survive: an agent's in-app browser,
- * where there is no console to read the reason from.
+ * Two failure modes, both observed rather than imagined, and neither of which
+ * a presence check catches:
  *
- * Degrading is the documented behaviour. Failing to read the context must cost
- * the agent, never the product.
+ *  - Reading the property can THROW. ModelContext is [SecureContext] and its
+ *    operations reject when the agent cluster is not origin-keyed, so a
+ *    browser can expose the name and refuse the read.
+ *  - The object can be INCOMPLETE. An agent's in-app browser exposed a
+ *    modelContext that was not an EventTarget, so addEventListener was not a
+ *    function on it. An object missing registerTool, getTools, or executeTool
+ *    is equally unusable.
+ *
+ * This is called during render, so an unguarded throw unmounts the tree and
+ * produces a blank page in exactly the environment the app most needs to
+ * survive: an in-app browser with no console to read the reason from.
+ *
+ * Degrading is the documented behaviour. A context that cannot be read, or
+ * cannot be used, must cost the agent and never the product.
  */
 export function getModelContext(): ModelContext | null {
   if (typeof document === 'undefined') return null
+
+  let candidate: ModelContext | undefined
   try {
-    const fromDocument = (document as unknown as { modelContext?: ModelContext }).modelContext
-    if (fromDocument) return fromDocument
-    // Older builds exposed this on navigator. Kept only as a fallback.
-    const fromNavigator = (navigator as unknown as { modelContext?: ModelContext }).modelContext
-    return fromNavigator ?? null
+    candidate =
+      (document as unknown as { modelContext?: ModelContext }).modelContext ??
+      // Older builds exposed this on navigator. Kept only as a fallback.
+      (navigator as unknown as { modelContext?: ModelContext }).modelContext
   } catch (err) {
     modelContextError = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
     return null
   }
+
+  if (!candidate) return null
+
+  const missing = REQUIRED_OPERATIONS.filter(
+    (op) => typeof (candidate as unknown as Record<string, unknown>)[op] !== 'function',
+  )
+  if (missing.length > 0) {
+    modelContextError = `document.modelContext is present but missing ${missing.join(', ')}`
+    return null
+  }
+
+  modelContextError = null
+  return candidate
 }
 
 export function isWebMCPAvailable(): boolean {

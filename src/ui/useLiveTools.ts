@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { registry } from '@/webmcp/registry'
-import { getModelContext, type RegisteredTool } from '@/webmcp/types'
+import type { RegisteredTool } from '@/webmcp/types'
 
 /**
  * What the browser actually has registered, read back through getTools.
@@ -12,10 +12,17 @@ import { getModelContext, type RegisteredTool } from '@/webmcp/types'
  * reading the tool map is how the agent panel came to advertise seven tools on
  * a page that had eight.
  *
- * Refreshes on our own registry changes and on toolchange. toolchange fires at
- * Documents rather than at the agent, and the spec leaves the moment an agent
- * observes the map implementation defined, so the page is the only place that
- * can state the current surface deterministically.
+ * Refreshes on our own registry changes and on toolchange. The spec fires
+ * toolchange at the Document, not at the ModelContext, so that is where the
+ * listener goes. Attaching it to the ModelContext happened to work in Chrome,
+ * whose ModelContext is an EventTarget, and threw
+ * "addEventListener is not a function" in an agent's in-app browser, which
+ * exposes the object without EventTarget on it. The Document is always an
+ * EventTarget, so this is both the correct target and the safe one.
+ *
+ * The spec also leaves the moment an agent observes the map
+ * implementation defined, so the page is the only place that can state the
+ * current surface deterministically.
  */
 export function useLiveTools(): {
   tools: RegisteredTool[]
@@ -37,12 +44,11 @@ export function useLiveTools(): {
   useEffect(() => {
     void load()
     const unsubscribe = registry.onChange(() => void load())
-    const mc = getModelContext()
     const onToolChange = () => void load()
-    mc?.addEventListener('toolchange', onToolChange)
+    document.addEventListener('toolchange', onToolChange)
     return () => {
       unsubscribe()
-      mc?.removeEventListener('toolchange', onToolChange)
+      document.removeEventListener('toolchange', onToolChange)
     }
   }, [load])
 

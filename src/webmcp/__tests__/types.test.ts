@@ -58,12 +58,23 @@ describe('getModelContext', () => {
     expect(getModelContextError()).toContain('SecurityError')
   })
 
-  it('returns the context when the getter works', () => {
-    const fake = { getTools: () => [] }
+  it('returns the context when the getter works and the shape is complete', () => {
+    const fake = { registerTool: () => {}, getTools: () => [], executeTool: () => '' }
     withModelContext({ value: fake, writable: true })
 
     expect(getModelContext()).toBe(fake)
     expect(isWebMCPAvailable()).toBe(true)
+  })
+
+  it('rejects a context that is present but missing operations', () => {
+    // What an agent's in-app browser actually exposed: an object that is not
+    // an EventTarget and does not carry the operations the app calls.
+    withModelContext({ value: { getTools: () => [] }, writable: true })
+
+    expect(getModelContext()).toBeNull()
+    expect(isWebMCPAvailable()).toBe(false)
+    expect(getModelContextError()).toContain('registerTool')
+    expect(getModelContextError()).toContain('executeTool')
   })
 
   it('reports unavailable when nothing exposes the API', () => {
