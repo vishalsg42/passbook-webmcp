@@ -60,7 +60,7 @@ export function extractMerchant(description: string): string {
  * A comparison key for "is this the same counterparty".
  *
  * Deliberately lossy: case folded, punctuation stripped, and truncated to the
- * first three meaningful words, so "SWIGGY LIMITED" and "SWIGGY LTD BANGALORE"
+ * first three meaningful words, so "QUICKBITE LIMITED" and "QUICKBITE LTD BANGALORE"
  * collapse together while remaining specific enough not to merge unrelated
  * payees.
  */

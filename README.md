@@ -170,6 +170,12 @@ Read tools carry `readOnlyHint`. Anything returning statement narration carries
 Passbook's text. *(Neither hint changes behaviour; both are declarations. `untrustedContentHint`
 appears in none of the 16 demos in `GoogleChromeLabs/webmcp-tools` — grep it and see.)*
 
+**Where the tool registration code is**, since it is the first thing worth reading:
+[`src/tools/index.ts`](src/tools/index.ts) declares every tool,
+[`src/tools/surface.ts`](src/tools/surface.ts) decides which of them exist right now,
+and [`src/webmcp/registry.ts`](src/webmcp/registry.ts) owns every call to
+`document.modelContext.registerTool` and handles the spec hazards in one place.
+
 **The registered set is a function of application state.** Before a statement is imported the
 analysis tools are not registered at all; drafting withdraws once every candidate is handled; pack
 status appears only once the pack has something in it. A tool that exists and returns "you cannot

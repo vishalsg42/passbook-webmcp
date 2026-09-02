@@ -12,7 +12,10 @@ Submission for The WebMCP Challenge (Devpost / OpenAI).
 
 - **Deadline: 2026-09-03, 13:00 PT.** No late entries.
 - **Post-deadline freeze:** once the deadline passes, do not touch the Devpost entry, the repo, or
-  the live site until winners are announced. To keep building, fork and work in the copy.
+  the live site. The rules require the project to stay live, public and working **until judging
+  ends on 2026-09-21, 5:00 PM PT**, and to "function as depicted in the video and/or expressed in
+  the text description". No commits, no deploys, no re-recording, and do not take the site
+  offline. To keep building, fork and work in the copy.
 - Public repo, MIT licence detectable in the About section.
 - Deliverables: live URL, public repo, text description, YouTube video **under 3 minutes with audio**.
 

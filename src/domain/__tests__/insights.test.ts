@@ -31,10 +31,10 @@ describe('insights', () => {
   })
 
   it('groups a counterparty spelled differently into one row', () => {
-    // Seed has several Swiggy debits with distinct reference tails.
-    const swiggy = topCounterparties(tx, 100).filter((c) => c.merchant.includes('SWIGGY'))
-    expect(swiggy).toHaveLength(1)
-    expect(swiggy[0].count).toBeGreaterThan(1)
+    // Seed has several delivery debits with distinct reference tails.
+    const delivery = topCounterparties(tx, 100).filter((c) => c.merchant.includes('QUICKBITE'))
+    expect(delivery).toHaveLength(1)
+    expect(delivery[0].count).toBeGreaterThan(1)
   })
 
   it('reports concentration as a fraction', () => {
@@ -74,17 +74,17 @@ describe('computed totals', () => {
   const tx = seedTransactions()
 
   it('sums only rows matching a term, and never asks a model to add up', () => {
-    const r = sumMatching(tx, { terms: ['swiggy'] })
+    const r = sumMatching(tx, { terms: ['quickbite'] })
     const byHand = tx
-      .filter((t) => t.amount < 0 && t.description.toLowerCase().includes('swiggy'))
+      .filter((t) => t.amount < 0 && t.description.toLowerCase().includes('quickbite'))
       .reduce((s, t) => s + Math.abs(t.amount), 0)
     expect(r.total).toBe(byHand)
     expect(r.count).toBeGreaterThan(0)
   })
 
   it('matches any of several terms, which is how a category is expressed', () => {
-    const one = sumMatching(tx, { terms: ['swiggy'] })
-    const two = sumMatching(tx, { terms: ['swiggy', 'blue tokai'] })
+    const one = sumMatching(tx, { terms: ['quickbite'] })
+    const two = sumMatching(tx, { terms: ['quickbite', 'roastery lane'] })
     expect(two.total).toBeGreaterThan(one.total)
     expect(two.count).toBeGreaterThan(one.count)
   })

@@ -3,8 +3,8 @@ import { detectMapping, parseCsv, parseCsvText, previewCsv } from '../csv'
 
 describe('parseCsvText', () => {
   it('keeps commas inside quoted fields', () => {
-    const rows = parseCsvText('Date,Narration,Amount\n01/04/2025,"SWIGGY, BANGALORE",-412.00')
-    expect(rows[1]).toEqual(['01/04/2025', 'SWIGGY, BANGALORE', '-412.00'])
+    const rows = parseCsvText('Date,Narration,Amount\n01/04/2025,"QUICKBITE, BANGALORE",-412.00')
+    expect(rows[1]).toEqual(['01/04/2025', 'QUICKBITE, BANGALORE', '-412.00'])
   })
 
   it('handles escaped quotes and CRLF', () => {
@@ -37,7 +37,7 @@ describe('detectMapping', () => {
 describe('parseCsv', () => {
   const csv = [
     'Date,Narration,Chq/Ref No,Withdrawal Amt,Deposit Amt,Closing Balance',
-    '01/04/2025,"SWIGGY, BANGALORE",600112233445,412.00,,47838.00',
+    '01/04/2025,"QUICKBITE, BANGALORE",600112233445,412.00,,47838.00',
     '02/04/2025,SALARY CREDIT,HDFCN123,,84000.00,131838.00',
     'bad-date,BROKEN ROW,X,1.00,,1.00',
   ].join('\n')
@@ -46,7 +46,7 @@ describe('parseCsv', () => {
     const { transactions } = parseCsv(csv, previewCsv(csv).mapping!)
     expect(transactions[0].amount).toBe(-41200)
     expect(transactions[1].amount).toBe(8400000)
-    expect(transactions[0].description).toBe('SWIGGY, BANGALORE')
+    expect(transactions[0].description).toBe('QUICKBITE, BANGALORE')
   })
 
   it('reports unreadable rows instead of dropping them silently', () => {

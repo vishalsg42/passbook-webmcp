@@ -3,6 +3,13 @@
 Paste-ready text for the entry form, plus the video plan. Nothing here may contradict the claims
 discipline in `CLAUDE.md`.
 
+> **FREEZE AFTER SUBMISSION.** The rules are explicit: once the Submission Period
+> ends you may not alter the submission, and the project must stay live, public
+> and working **until judging ends on 21 September, 5:00 PM PT** — and must
+> "function as depicted in the video and/or expressed in the text description".
+> So after submitting: no commits, no `netlify deploy`, no re-recording, and do
+> not take the site down. To keep building, fork and work in the copy.
+
 - **Live URL:** https://passbook-webmcp.netlify.app
 - **Repo:** https://github.com/vishalsg42/passbook-webmcp (MIT)
 - **Video:** _(to record)_
@@ -79,7 +86,7 @@ from one investment platform, 110 from another, all instalment plans. Nine
 survive. Getting from 367 to 9 is the work.
 
 **And you can just ask.** "How much did I spend on food?" The agent decides
-Swiggy is food; `total_spent` does the summing over reconciled rows and returns
+the delivery merchant is food; `total_spent` does the summing over reconciled rows and returns
 the terms it counted, so the number is computed rather than a model's mental
 arithmetic. That distinction is the whole architecture.
 
@@ -94,6 +101,39 @@ page asks the person the same question, in the same words, on screen.
 **Every tool has a human equivalent.** Anything the agent can do, you can do by
 clicking. A browser without WebMCP loses the agent, not the product — and the
 WebMCP polyfill from Chrome's own demo collection means the tools work anywhere.
+
+### The four things the rules ask a description to address
+
+Answered head-on, because they are the rubric.
+
+**Why WebMCP is a strong fit here.** A bank statement is the worst possible
+thing to hand a model: 154 pages, 1,630 rows, and every figure load-bearing. Upload
+the PDF and the model reads what it can and quietly miscounts the rest. WebMCP
+inverts it — the page keeps the ledger, parses it deterministically, reconciles
+every row against the printed running balance, and exposes *questions the agent
+can ask* rather than a document it has to skim. The agent brings intent and
+language; the page brings arithmetic that is either right or fails a checksum.
+Neither could do this alone, and no backend could do it without being handed the
+statement first.
+
+**How it improves the experience.** You stop reading. A year of transactions
+becomes something you interrogate in your own words — "how much did I spend on
+food", "what leaves on autopilot" — and get an answer computed over reconciled
+rows rather than estimated from a sample. The agent receives only the field set a
+tool returned, and the Activity panel lists those fields per call, so the
+minimisation is checkable rather than promised.
+
+**What the two can now do together that neither could before.** The page can
+narrow 1,630 rows to nine worth a look, and it can prove they are worth it —
+both dates, both bank references, the reversal it ruled out. What it cannot do
+is know whether you meant to pay twice. So `get_duplicate_candidates` returns
+those findings **with a question attached**, the agent puts it to you in its own
+words, and your answer is what settles the case and gets recorded with it. A
+ledger that asks, a person who answers, and a document neither wrote alone. That
+loop is not expressible without a tool surface living inside the page that holds
+the data.
+
+**How WebMCP is actually integrated.** Below.
 
 ### The WebMCP implementation
 
@@ -149,6 +189,42 @@ returned the masked card number and would have sent it to the agent through
 key field, autofilled a saved password into it, and the change handler wrote that
 to `sessionStorage`.
 
+## Testing instructions (paste into the Devpost field)
+
+**No login, no credentials, nothing to install.** A demo statement loads by
+itself, so the live URL works the moment it opens.
+
+**The intended path.** Open <https://passbook-webmcp.netlify.app> in ChatGPT's
+in-app browser, or in Chrome 149+ with `chrome://flags/#enable-webmcp-testing`
+enabled, and ask in your own words. Starting points are on the page as one-press
+chips:
+
+- *"Where did my money actually go?"*
+- *"How much did I spend on food?"*
+- *"What standing commitments do I have, and what do they come to in a year?"*
+- *"Is anything here worth a second look? Show me the evidence."*
+
+**Without an agent browser, three fallbacks, all on the same page.** Passbook
+loads the WebMCP polyfill from Chrome's own demo collection, so the tools are
+live in any browser: add `?nowebmcp` to force that path and see it. There is a
+bring-your-own-key agent that takes a Gemini or Anthropic key and drives the same
+tools through the same registry. And a tool console that calls `getTools()` and
+`executeTool()` directly, so you can invoke anything by hand and read the raw
+result.
+
+**To watch the tool surface follow application state:** open **Tools** in the
+header and keep it in view. Settle both candidates and the count drops as
+`draft_dispute_case` and `dismiss_candidate` unregister themselves; switch the
+header to *My statement* and it falls to two. Calling a tool that is no longer
+registered fails with `UnknownError` from the browser, not a refusal from us.
+
+**To check the parser rather than trust it:** switch to *My statement* and press
+**Load a sample statement**. It goes through the same function a dropped file
+does — column detection, balance-chain validation, real coverage numbers — and
+the activity log records it as *Imported*, not *Loaded the demo*.
+
+**To see the ablation:** add `?ablation=instruction` with no statement imported.
+
 ## What was cut, and why
 
 Recorded in full in `docs/DECISIONS.md`: ten concepts tested, nine killed on first-hand evidence.
@@ -188,7 +264,7 @@ Four takes.
 | Time | Shot | Say |
 |---|---|---|
 | 0:00–0:25 | **Cold open on the scale.** Scroll the statement view fast, then stop on "Where your money went" — six counterparties, 83%, and the standing commitments line with the yearly figure. No logo, no tour, no "hi". The header reads *Demo statement (sample data)*; leave it visible. | "A year of my bank statement is 154 pages and 1,630 rows. I have never read it. Passbook parsed every one of them and checked each against the printed running balance. What you're seeing is a sample — but this is what reading all of it gets you. Six counterparties are 83% of everything that left the account. And about ₹96,500 a year goes out on standing instructions I set up once and stopped thinking about." |
-| 0:25–1:05 | **Ask it something real.** Type *"How much did I spend on food?"* into the agent panel. The `total_spent` chip appears, then the answer. | "It decided Swiggy counts as food. It did not add the numbers up — the page did that, over rows it had already reconciled. The model picks what counts; the page says what it costs. That is the whole architecture." |
+| 0:25–1:05 | **Ask it something real.** Type *"How much did I spend on food?"* into the agent panel. The `total_spent` chip appears, then the answer. | "It decided the delivery merchant counts as food. It did not add the numbers up — the page did that, over rows it had already reconciled. The model picks what counts; the page says what it costs. That is the whole architecture." |
 | 1:05–1:55 | **The honest part — the beat that matters.** Ask *"Which charges look like I was billed twice?"* The evidence comes back with Passbook's question attached. Answer it out loud. The row leaves the list and your reason is recorded. | "Two here out of thirty. On my real statement it was nine out of sixteen hundred — and here it is asking me something the statement genuinely cannot answer. So I checked all nine. Every single one was a payment I meant to make. Nothing was wrong. That is exactly why this doesn't tell you it found your money: it tells you what it can't know, and asks." |
 | 1:55–2:25 | **Mechanism, briskly.** The Tools counter in the header ticking down as you settle candidates; open Activity and show the field chips. | "The tools an agent can call here depend on what has happened. Before a statement is loaded these do not exist — not disabled, not registered. And this lists the exact fields each call returned, so 'data minimisation' is something you can check rather than something I claim." |
 | 2:25–2:50 | **Limits, out loud.** | "Tool results reach the model, so this is data minimisation, not secrecy. Chrome's own guidance says you cannot guarantee safety inside a language model, and I am not claiming to have. And the duplicate detector is a filter, not a verdict." |
@@ -199,3 +275,9 @@ whose entire entry is that idea. Open on the scale of what was read.
 
 **Do not say "found", "recovered", "owed back", or "duplicate charge" about the
 real statement.** The audit in `docs/DECISIONS.md` is the reason.
+
+**Every counterparty in the demo is invented, and must stay that way.** The rules
+exclude third-party trademarks from the video, and the seed originally named
+three real Indian businesses — one of which appeared beside a row headed "paid
+the same amount twice", which implies something about a named company that is not
+true of it. Renamed 2026-09-02.
