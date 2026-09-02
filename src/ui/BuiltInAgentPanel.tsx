@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { KeyRound, Send, Square, Trash2, Wrench } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,36 +22,93 @@ import { useLiveTools } from './useLiveTools'
  */
 
 /**
- * The little markdown models actually emit: bold, and line breaks.
+ * The markdown models actually emit.
  *
- * Without this an answer renders as `**₹87,409.00**` with the asterisks
- * showing, and every bullet collapses onto one line because HTML eats the
- * newlines. Built as React elements rather than parsed HTML: this is model
- * output rendered in a page that reads bank statements, and it is never going
- * anywhere near dangerouslySetInnerHTML.
+ * Not a markdown library: this renders the handful of things that turn up in
+ * practice — headings, bullets at a couple of levels, bold, and rules — and
+ * leaves everything else as text. Built as React elements rather than parsed
+ * HTML, because this is model output rendered in an app that reads bank
+ * statements and it is never going near dangerouslySetInnerHTML.
+ *
+ * Without it a correct answer reads as broken: literal ### before a heading,
+ * stray asterisks around every amount, and bullets collapsed onto one line
+ * because HTML eats newlines.
  */
-function Formatted({ text }: { text: string }) {
-  const lines = text.split('\n').filter((l) => l.trim() !== '')
-
+function Inline({ text }: { text: string }) {
+  // Bold first, then italics inside whatever is left. Doing it the other way
+  // round tears `**bold**` in half at its own asterisks.
   return (
     <>
-      {lines.map((line, i) => {
-        const bullet = /^\s*[*-]\s+/.test(line)
-        const body = line.replace(/^\s*[*-]\s+/, '')
-        return (
-          <span key={i} className={`block ${bullet ? 'pl-3 -indent-3' : ''} ${i > 0 ? 'mt-1' : ''}`}>
-            {bullet && <span aria-hidden>&bull;&nbsp;</span>}
-            {body.split(/(\*\*[^*]+\*\*)/g).map((seg, j) =>
-              seg.startsWith('**') && seg.endsWith('**') && seg.length > 4 ? (
-                <strong key={j}>{seg.slice(2, -2)}</strong>
+      {text.split(/(\*\*[^*]+\*\*)/g).map((seg, i) =>
+        seg.startsWith('**') && seg.endsWith('**') && seg.length > 4 ? (
+          <strong key={i} className="font-semibold">
+            {seg.slice(2, -2)}
+          </strong>
+        ) : (
+          <span key={i}>
+            {seg.split(/(\*[^*\n]+\*)/g).map((bit, j) =>
+              bit.startsWith('*') && bit.endsWith('*') && bit.length > 2 ? (
+                <em key={j}>{bit.slice(1, -1)}</em>
               ) : (
-                <span key={j}>{seg}</span>
+                <span key={j}>{bit}</span>
               ),
             )}
           </span>
+        ),
+      )}
+    </>
+  )
+}
+
+function Formatted({ text }: { text: string }) {
+  const lines = text.split('\n')
+
+  return (
+    <div className="space-y-1">
+      {lines.map((line, i) => {
+        if (line.trim() === '') return null
+
+        if (/^\s*(---+|\*\*\*+)\s*$/.test(line)) {
+          return <hr key={i} className="my-2 border-0 border-t border-line" />
+        }
+
+        const heading = line.match(/^(#{1,6})\s+(.*)$/)
+        if (heading) {
+          return (
+            <p key={i} className="m-0 mt-2 font-semibold text-ink">
+              <Inline text={heading[2]} />
+            </p>
+          )
+        }
+
+        const bullet = line.match(/^(\s*)[*\-\u2022]\s+(.*)$/)
+        if (bullet) {
+          // Indent by nesting depth rather than flattening every level onto
+          // the same line, which is what made a breakdown unreadable.
+          const depth = Math.min(Math.floor(bullet[1].length / 2), 3)
+          return (
+            <p
+              key={i}
+              className="m-0 flex gap-1.5"
+              style={{ paddingLeft: `${depth * 14}px` }}
+            >
+              <span className="text-muted" aria-hidden>
+                &bull;
+              </span>
+              <span className="min-w-0">
+                <Inline text={bullet[2]} />
+              </span>
+            </p>
+          )
+        }
+
+        return (
+          <p key={i} className="m-0">
+            <Inline text={line} />
+          </p>
         )
       })}
-    </>
+    </div>
   )
 }
 
@@ -79,6 +136,14 @@ export function BuiltInAgentPanel() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const abort = useRef<AbortController | null>(null)
+  const thread = useRef<HTMLDivElement>(null)
+
+  // Keep the newest turn in view. A reply that arrives below the fold of a
+  // scrolling panel reads as nothing having happened.
+  useEffect(() => {
+    const el = thread.current
+    if (el) el.scrollTop = el.scrollHeight
+  }, [entries])
 
   const pick = (id: ProviderId) => {
     const next = PROVIDERS.find((p) => p.id === id)!
@@ -247,36 +312,43 @@ export function BuiltInAgentPanel() {
         natively.
       </p>
 
+      {/* One flat panel ran every turn together: you could not tell where a
+          question ended and an answer began, and the tool calls looked like
+          part of whichever message they sat under. Each turn is now its own
+          shape — asked on the right, answered on the left, tool calls as thin
+          rows between the two, which is also the order they happen in. */}
       {entries.length > 0 && (
-        <div className="mt-3 max-h-80 space-y-2 overflow-y-auto rounded-[10px] border border-line bg-muted-bg p-3">
+        <div ref={thread} className="mt-3 max-h-96 space-y-2.5 overflow-y-auto py-1">
           {entries.map((entry, i) =>
             entry.kind === 'said' ? (
-              // Label above rather than inline: an answer with bullets in it
-              // renders as block lines, which would push a trailing label onto
-              // its own row anyway and leave it looking like a mistake.
-              <div key={i} className="text-[13px] leading-relaxed">
-                <span className="mb-0.5 block text-[11px] uppercase tracking-[0.08em] text-muted">
-                  {entry.who}
-                </span>
-                <div className={entry.who === 'you' ? 'font-medium text-ink' : 'text-ink'}>
-                  <Formatted text={entry.text} />
-                </div>
+              <div
+                key={i}
+                className={
+                  entry.who === 'you'
+                    ? 'ml-auto w-fit max-w-[85%] rounded-[12px] rounded-br-[4px] bg-navy px-3 py-2 text-[13px] leading-relaxed text-white'
+                    : 'mr-auto max-w-full rounded-[12px] rounded-bl-[4px] border border-line bg-surface px-3.5 py-2.5 text-[13px] leading-relaxed text-ink'
+                }
+              >
+                <span className="sr-only">{entry.who === 'you' ? 'You asked:' : 'Agent replied:'}</span>
+                <Formatted text={entry.text} />
               </div>
             ) : (
-              <p key={i} className="m-0 flex flex-wrap items-center gap-1.5 text-[12px]">
-                <Wrench className="size-3 shrink-0 text-muted" aria-hidden />
+              <p
+                key={i}
+                className="m-0 flex flex-wrap items-center gap-1.5 pl-1 text-[12px] text-muted"
+              >
+                <Wrench className="size-3 shrink-0" aria-hidden />
+                <span className="sr-only">Called the page tool</span>
                 <code
                   className={`num rounded border px-1.5 py-px ${
                     entry.failed
                       ? 'border-[#f5cdc8] bg-[#fdecea] text-danger'
-                      : 'border-line bg-surface text-muted'
+                      : 'border-line bg-muted-bg'
                   }`}
                 >
                   {entry.name}
                 </code>
-                <span className="text-muted">
-                  {entry.failed ? entry.output : `${entry.output.length} chars returned`}
-                </span>
+                <span>{entry.failed ? entry.output : `${entry.output.length} chars returned`}</span>
               </p>
             ),
           )}
