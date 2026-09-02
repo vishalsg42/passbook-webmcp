@@ -146,13 +146,27 @@
         }
       }
 
-      window.__webmcpNative = (function () {
+      /*
+        Three states, not two. "Absent" and "threw while reading" are different
+        situations and only one of them may be polyfilled.
+
+        Reading document.modelContext can throw — ModelContext is
+        [SecureContext] and rejects when the agent cluster is not origin-keyed.
+        Treating that as absent and installing the polyfill would define an own
+        property over the native one, so every tool this page registers would go
+        into the polyfill instead of to the browser, and the browser's own agent
+        would see nothing. A page that cannot read the context is bad; a page
+        that silently diverts its registrations away from the agent is worse,
+        and looks identical from the outside.
+      */
+      window.__webmcpProbe = (function () {
         try {
-          return Boolean(document.modelContext)
+          return document.modelContext ? 'native' : 'absent'
         } catch (err) {
-          return false
+          return 'threw'
         }
       })()
+      window.__webmcpNative = window.__webmcpProbe === 'native'
 
       /*
         Loaded only when there is no native context, rather than always with
@@ -171,7 +185,7 @@
         before the app module runs, and during initial parse this is the
         synchronous option.
       */
-      if (!window.__webmcpNative) {
+      if (window.__webmcpProbe === 'absent') {
         document.write('<script src="/vendor/webmcp-polyfill.js"><\/script>')
       }
     </script>

@@ -18,6 +18,7 @@
  */
 
 import {
+  canInspectToolMap,
   getModelContext,
   isValidToolName,
   type RegisteredTool,
@@ -123,9 +124,28 @@ export class ToolRegistry {
   /** Ask the browser what is actually registered. This is the authoritative
    *  view, used by the UI panel so the demo asserts on the real tool map
    *  rather than on this class's bookkeeping. */
+  /** True when the browser lets this page read its own tool map. */
+  get canInspect(): boolean {
+    return canInspectToolMap()
+  }
+
   async getLiveTools(): Promise<RegisteredTool[]> {
     const mc = getModelContext()
     if (!mc) return []
+
+    // A browser can host tools for its agent without giving the page getTools.
+    // Registration still happened, so reporting an empty list would be a lie
+    // that looks exactly like a failure. Fall back to what we registered, and
+    // let the UI say where the list came from.
+    if (!canInspectToolMap()) {
+      return [...this.entries.values()].map((e) => ({
+        name: e.descriptor.name,
+        description: e.descriptor.description,
+        inputSchema: e.descriptor.inputSchema,
+        annotations: e.descriptor.annotations,
+      }))
+    }
+
     try {
       return await mc.getTools()
     } catch (err) {
@@ -166,6 +186,12 @@ export class ToolRegistry {
   async invoke(name: string, input: unknown): Promise<string> {
     const mc = getModelContext()
     if (!mc) throw new Error('WebMCP unavailable')
+    if (!canInspectToolMap()) {
+      throw new Error(
+        'This browser registers tools but does not let the page call them back. ' +
+          'Its own agent can still use them; the in-page console cannot.',
+      )
+    }
     const tools = await mc.getTools()
     const tool = tools.find((t) => t.name === name)
     if (!tool) {

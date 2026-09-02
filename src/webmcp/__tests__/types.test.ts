@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { getModelContext, getModelContextError, isWebMCPAvailable } from '../types'
+import {
+  canInspectToolMap,
+  getModelContext,
+  getModelContextError,
+  isWebMCPAvailable,
+} from '../types'
 
 /**
  * A browser can expose document.modelContext and still throw when it is read.
@@ -66,15 +71,16 @@ describe('getModelContext', () => {
     expect(isWebMCPAvailable()).toBe(true)
   })
 
-  it('rejects a context that is present but missing operations', () => {
-    // What an agent's in-app browser actually exposed: an object that is not
-    // an EventTarget and does not carry the operations the app calls.
+  it('rejects a context that cannot register, whatever else it carries', () => {
+    // This used to assert that a context missing executeTool was unusable too.
+    // That was wrong, and expensively so: registration needs registerTool and
+    // nothing else, and demanding the inspection methods would have refused
+    // every registration in a browser that exposes only the one that matters.
     withModelContext({ value: { getTools: () => [] }, writable: true })
 
     expect(getModelContext()).toBeNull()
     expect(isWebMCPAvailable()).toBe(false)
     expect(getModelContextError()).toContain('registerTool')
-    expect(getModelContextError()).toContain('executeTool')
   })
 
   it('reports unavailable when nothing exposes the API', () => {
@@ -83,5 +89,51 @@ describe('getModelContext', () => {
 
     expect(getModelContext()).toBeNull()
     expect(isWebMCPAvailable()).toBe(false)
+  })
+})
+
+/**
+ * The shape an agent's in-app browser is documented to expose.
+ *
+ * OpenAI's integration guide gates on `registerTool` alone: `getTools` and
+ * `executeTool` let a *page* inspect and invoke a tool map, and a browser
+ * hosting an agent has no obligation to hand either to the page. It discovers
+ * registrations through its own internals.
+ *
+ * Passbook used to require all three, so a browser exposing only registerTool
+ * got every registration refused before it was attempted — silently, and in the
+ * one environment the project exists to run in.
+ */
+describe('a context with only registerTool', () => {
+  const registerOnly = { registerTool: () => Promise.resolve() }
+
+  it('is usable, because registration is all registration needs', () => {
+    withModelContext({ value: registerOnly })
+    expect(getModelContext()).not.toBeNull()
+    expect(isWebMCPAvailable()).toBe(true)
+    expect(getModelContextError()).toBeNull()
+  })
+
+  it('reports that the page cannot read its own tool map', () => {
+    withModelContext({ value: registerOnly })
+    expect(canInspectToolMap()).toBe(false)
+  })
+
+  it('reports inspection available when all three are present', () => {
+    withModelContext({
+      value: {
+        registerTool: () => Promise.resolve(),
+        getTools: () => Promise.resolve([]),
+        executeTool: () => Promise.resolve(''),
+      },
+    })
+    expect(canInspectToolMap()).toBe(true)
+    expect(getModelContext()).not.toBeNull()
+  })
+
+  it('still rejects a context with no registerTool at all', () => {
+    withModelContext({ value: { getTools: () => Promise.resolve([]) } })
+    expect(getModelContext()).toBeNull()
+    expect(getModelContextError()).toMatch(/no registerTool/)
   })
 })

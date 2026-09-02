@@ -3,6 +3,7 @@ import { RefreshCw, Wrench } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { registry } from '@/webmcp/registry'
 import { useLiveTools } from './useLiveTools'
 
 /**
@@ -60,8 +61,18 @@ export function ToolSurfacePanel({ bare = false }: { bare?: boolean } = {}) {
       <div>
         <div className="mb-3 flex items-center gap-2 text-[12.5px] text-muted">
           <span className="flex-1">
-            Read back through <code className="num">getTools()</code>, so this is the browser&rsquo;s
-            tool map rather than our own list. It changes as you work.
+            {registry.canInspect ? (
+              <>
+                Read back through <code className="num">getTools()</code>, so this is the
+                browser&rsquo;s tool map rather than our own list. It changes as you work.
+              </>
+            ) : (
+              <>
+                This browser accepts registrations but does not expose{' '}
+                <code className="num">getTools()</code> to the page, so this is what Passbook
+                registered rather than what the browser reports. Its agent can still call them.
+              </>
+            )}
           </span>
           <Button size="icon" variant="ghost" onClick={refresh} aria-label="Refresh tool list">
             <RefreshCw />

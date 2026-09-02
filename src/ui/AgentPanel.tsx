@@ -174,13 +174,24 @@ function ToolConsole({ disabled }: { disabled: boolean }) {
           onChange={(e) => setArgs(e.target.value)}
           placeholder="{}"
         />
-        <Button variant="outline" onClick={() => void run()} disabled={running || disabled}>
+        <Button
+          variant="outline"
+          onClick={() => void run()}
+          disabled={running || disabled || !registry.canInspect}
+        >
           <Play />
           Run
         </Button>
       </div>
 
-      {disabled && (
+      {!registry.canInspect && (
+        <p className="mt-2 text-[12.5px] text-muted">
+          This browser registers tools but does not let the page call them back, so the console
+          cannot run them here. Its own agent still can &mdash; ask it in the chat instead.
+        </p>
+      )}
+
+      {disabled && registry.canInspect && (
         <p className="mt-2 text-[12.5px] text-muted">Import a statement to call these tools.</p>
       )}
 

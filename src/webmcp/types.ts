@@ -84,9 +84,25 @@ export function getModelContextError(): string | null {
   return modelContextError
 }
 
-/** The operations Passbook actually calls. An object missing any of them
- *  cannot drive the app, so it is treated as no context at all. */
-const REQUIRED_OPERATIONS = ['registerTool', 'getTools', 'executeTool'] as const
+/**
+ * Registration needs exactly one operation, and this used to demand three.
+ *
+ * OpenAI's own integration guide gates on
+ * `typeof document.modelContext?.registerTool === 'function'` and nothing else:
+ * `getTools` and `executeTool` are how a *page* inspects and invokes a tool
+ * map, and an agent-hosting browser has no obligation to expose either. It
+ * discovers what the page registered through its own internals.
+ *
+ * Requiring all three conflated "this page cannot read its own tool map" with
+ * "this browser cannot host tools", and the consequence was silent: an in-app
+ * browser exposing only `registerTool` would have had every registration
+ * refused before it was attempted, and Passbook would have looked, to the one
+ * agent it is built for, like a page with no tools at all.
+ */
+const REGISTRATION_OPERATION = 'registerTool' as const
+
+/** Needed only for the page's own tool console and surface panel. */
+const INSPECTION_OPERATIONS = ['getTools', 'executeTool'] as const
 
 /**
  * Detect a model context that is actually usable.
@@ -125,16 +141,30 @@ export function getModelContext(): ModelContext | null {
 
   if (!candidate) return null
 
-  const missing = REQUIRED_OPERATIONS.filter(
-    (op) => typeof (candidate as unknown as Record<string, unknown>)[op] !== 'function',
-  )
-  if (missing.length > 0) {
-    modelContextError = `document.modelContext is present but missing ${missing.join(', ')}`
+  const asRecord = candidate as unknown as Record<string, unknown>
+  if (typeof asRecord[REGISTRATION_OPERATION] !== 'function') {
+    modelContextError = `document.modelContext is present but has no ${REGISTRATION_OPERATION}`
     return null
   }
 
   modelContextError = null
   return candidate
+}
+
+/**
+ * Whether this page can read back and invoke its own tool map.
+ *
+ * False is a perfectly good state: the browser may host tools for its agent
+ * without handing the page the inspection API. Registration still works, so the
+ * product still works — what is lost is the tool console and the live surface
+ * panel, both of which say so rather than rendering an empty list that looks
+ * like a failure.
+ */
+export function canInspectToolMap(): boolean {
+  const mc = getModelContext()
+  if (!mc) return false
+  const asRecord = mc as unknown as Record<string, unknown>
+  return INSPECTION_OPERATIONS.every((op) => typeof asRecord[op] === 'function')
 }
 
 export function isWebMCPAvailable(): boolean {
