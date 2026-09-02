@@ -1,5 +1,7 @@
-import { useEffect } from 'react'
-import { BookText, Info, TriangleAlert } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { BookText, Info, ScrollText, TriangleAlert, Wrench } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Drawer } from '@/components/ui/drawer'
 import { store } from '@/domain/store'
 import { loadDemoStatement } from '@/domain/demo'
 import { SEED_LABEL } from '@/domain/seed'
@@ -12,6 +14,7 @@ import { FindingsPanel } from './ui/FindingsPanel'
 import { ImportPanel } from './ui/ImportPanel'
 import { PackPanel } from './ui/PackPanel'
 import { StatementModeSwitch } from './ui/StatementModeSwitch'
+import { useLiveTools } from './ui/useLiveTools'
 import { useStore } from './ui/useStore'
 import { StatementPanel } from './ui/StatementPanel'
 import { ToolSurfacePanel } from './ui/ToolSurfacePanel'
@@ -23,6 +26,10 @@ export function App() {
   // in the page's best position is a second answer to a settled question, and
   // it pushes the number someone came to see below the fold.
   const onDemo = statementLabel === SEED_LABEL
+  // Secondary surfaces. They explain how Passbook works rather than what it
+  // found, and they were taking half the screen of an app about somebody's
+  // bank statement.
+  const [drawer, setDrawer] = useState<'tools' | 'activity' | null>(null)
   const webmcp = isWebMCPAvailable()
   const polyfilled = isWebMCPPolyfilled()
   const webmcpError = getModelContextError()
@@ -58,8 +65,9 @@ export function App() {
         {/* Always rendered. This block used to be behind
             `transactions.length > 0`, so clearing the demo removed the only
             control that could bring it back. */}
-        <div className="ml-auto">
+        <div className="ml-auto flex flex-col items-end gap-2">
           <StatementModeSwitch />
+          <InspectorButtons onOpen={setDrawer} />
         </div>
       </header>
 
@@ -123,6 +131,9 @@ export function App() {
         </div>
       )}
 
+      {/* Your statement on the left, your agent on the right. The tool
+          registry and the activity log moved into drawers: they are the
+          evidence for how this works, not the work itself. */}
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-5">
           {!onDemo && <ImportPanel />}
@@ -132,10 +143,41 @@ export function App() {
         </div>
         <div className="flex min-w-0 flex-col gap-5">
           <AgentPanel />
-          <ToolSurfacePanel />
-          <AuditPanel />
         </div>
       </div>
+
+      <Drawer open={drawer === 'tools'} onClose={() => setDrawer(null)} title="Tools your agent can call">
+        <ToolSurfacePanel bare />
+      </Drawer>
+      <Drawer open={drawer === 'activity'} onClose={() => setDrawer(null)} title="Activity">
+        <AuditPanel bare />
+      </Drawer>
+    </div>
+  )
+}
+
+/**
+ * Live counters that open the drawers.
+ *
+ * The tool count is the point. It sits in the header and changes as the work
+ * progresses, so the surface following application state is visible while you
+ * are looking at findings, which is more convincing than a list in a sidebar
+ * people stop seeing.
+ */
+function InspectorButtons({ onOpen }: { onOpen: (which: 'tools' | 'activity') => void }) {
+  const { tools } = useLiveTools()
+  const { audit } = useStore()
+
+  return (
+    <div className="flex items-center gap-1">
+      <Button size="sm" variant="ghost" onClick={() => onOpen('tools')}>
+        <Wrench />
+        Tools <span className="num font-semibold">{tools.length}</span>
+      </Button>
+      <Button size="sm" variant="ghost" onClick={() => onOpen('activity')}>
+        <ScrollText />
+        Activity <span className="num font-semibold">{audit.length}</span>
+      </Button>
     </div>
   )
 }
