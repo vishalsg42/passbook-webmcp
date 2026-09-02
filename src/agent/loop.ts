@@ -58,7 +58,7 @@ export async function runAgentTurn(args: {
     const tools = await registry.getLiveTools()
 
     const reply = await impl.send({ apiKey, model, system: SYSTEM, turns, tools, signal })
-    turns.push({ role: 'assistant', text: reply.text, calls: reply.calls })
+    turns.push({ role: 'assistant', text: reply.text, calls: reply.calls, raw: reply.raw })
     if (reply.text) events.onAssistantText(reply.text)
     if (reply.calls.length === 0) return turns
 

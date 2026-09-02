@@ -65,6 +65,21 @@ export interface Turn {
   calls?: ToolCall[]
   /** Results supplied back to the model for the previous turn's calls. */
   results?: ToolResultTurn[]
+  /**
+   * The provider's own representation of an assistant turn, kept exactly as it
+   * arrived and replayed verbatim on the next request.
+   *
+   * Rebuilding the turn from `text` and `calls` looks equivalent and is not.
+   * Gemini 3 attaches a `thoughtSignature` to each `functionCall` part and
+   * rejects the follow-up request without it: "Function call is missing a
+   * thought_signature in functionCall parts." Google's guidance is to resend
+   * what the model sent, unchanged, so that is what this holds. Reconstructing
+   * would mean chasing every future field of this kind one 400 at a time.
+   *
+   * Provider-shaped, so a conversation cannot be carried across providers.
+   * Switching provider clears the history.
+   */
+  raw?: unknown
 }
 
 export interface ToolCall {
@@ -82,6 +97,8 @@ export interface ToolResultTurn {
 export interface ProviderReply {
   text: string
   calls: ToolCall[]
+  /** The provider's own turn representation, to be replayed unchanged. */
+  raw?: unknown
 }
 
 export interface Provider {
@@ -126,6 +143,12 @@ async function readError(response: Response): Promise<string> {
 const gemini: Provider = {
   async send({ apiKey, model, system, turns, tools, signal }) {
     const contents = turns.map((turn) => {
+      // Replay the model's own parts rather than rebuilding them: they carry
+      // thought signatures the API requires back verbatim.
+      if (turn.role === 'assistant' && turn.raw) {
+        return { role: 'model', parts: turn.raw as Record<string, unknown>[] }
+      }
+
       const parts: Record<string, unknown>[] = []
       if (turn.text) parts.push({ text: turn.text })
       for (const call of turn.calls ?? []) {
@@ -164,9 +187,10 @@ const gemini: Provider = {
     if (!response.ok) throw new Error(await readError(response))
 
     const body = (await response.json()) as {
-      candidates?: { content?: { parts?: Record<string, never>[] } }[]
+      candidates?: { content?: { parts?: Record<string, unknown>[] } }[]
     }
-    const parts = (body.candidates?.[0]?.content?.parts ?? []) as {
+    const rawParts = body.candidates?.[0]?.content?.parts ?? []
+    const parts = rawParts as {
       text?: string
       functionCall?: { name: string; args?: Record<string, unknown> }
     }[]
@@ -185,13 +209,17 @@ const gemini: Provider = {
         input: p.functionCall!.args ?? {},
       }))
 
-    return { text, calls }
+    return { text, calls, raw: rawParts }
   },
 }
 
 const anthropic: Provider = {
   async send({ apiKey, model, system, turns, tools, signal }) {
     const messages = turns.map((turn) => {
+      if (turn.role === 'assistant' && turn.raw) {
+        return { role: 'assistant', content: turn.raw as Record<string, unknown>[] }
+      }
+
       const content: Record<string, unknown>[] = []
       if (turn.text) content.push({ type: 'text', text: turn.text })
       for (const call of turn.calls ?? []) {
@@ -247,6 +275,7 @@ const anthropic: Provider = {
       calls: blocks
         .filter((b) => b.type === 'tool_use')
         .map((b) => ({ id: b.id!, name: b.name!, input: b.input ?? {} })),
+      raw: blocks,
     }
   },
 }

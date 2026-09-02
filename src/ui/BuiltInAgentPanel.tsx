@@ -48,6 +48,12 @@ export function BuiltInAgentPanel() {
     const next = PROVIDERS.find((p) => p.id === id)!
     setProvider(id)
     setModel(next.defaultModel)
+    // Turns carry the previous provider's own representation of its replies,
+    // so they cannot be handed to a different one. Clearing is the honest
+    // behaviour; replaying them would fail on the first request.
+    setTurns([])
+    setEntries([])
+    setError(null)
     try {
       setApiKey(sessionStorage.getItem(`${KEY_STORAGE}.${id}`) ?? '')
     } catch {
