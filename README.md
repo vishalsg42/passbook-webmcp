@@ -1,6 +1,6 @@
 # Passbook
 
-**It found the money you already lost, and wrote the letter to get it back.**
+**It reads every row of your statement and finds the few worth a second look.**
 
 An agent reads your real bank statement, finds charges you paid twice, and drafts the dispute
 letters with you. You edit, accept, reject. Passbook exports a dispute pack you can send to your
@@ -45,13 +45,21 @@ bank: a document neither you nor the agent produces alone.
 | Bank reference column coverage | **100%** |
 | Running-balance chain | **intact end to end** |
 | Second and third banks | Kotak Mahindra 107 rows · RBL 143 rows |
-| Duplicate charges found across the year | **9** — 2 the evidence settles, 7 it cannot |
+| Candidate pairs surfaced across the year | **9** out of 1,630 rows |
+| Of those, confirmed bank errors | **0** — every one was an intentional payment |
 | False positives suppressed by one rule | **367 candidate pairs** |
 
-That last row is the product. A naive `(date, amount, merchant)` match on this statement returns
-367 pairs, of which **222 are a single investment platform and 110 another** — instalment plans,
-not errors. Nine survive rules that can each be read in the source. Getting from 367 to 9 is the
-work; the rest is presentation.
+**That second-to-last row is the product, and the last row is why the copy says what it says.**
+A naive `(date, amount, merchant)` match on this statement returns 367 pairs, of which **222 are a
+single investment platform and 110 another** — instalment plans, not errors. Nine survive rules
+that can each be read in the source. Getting from 367 to 9 is the work.
+
+Then the nine were audited by the account holder, and **all nine were payments they meant to
+make.** The balance chain reconciles across every pair, and four are adjacent rows where the
+balance falls by that amount twice in succession — so the postings are real and the intent was
+too. Passbook therefore does not claim to find duplicate charges. It claims to read 1,630 rows and
+hand back the nine worth a second look, and to say plainly that only the account holder can settle
+them. A tool that told you it had found money would have been wrong nine times out of nine here.
 
 *(367 is measured holding out the recurring-arrangement rule while keeping the rail filter, the
 date window and the reversal check. Quote the filters whenever you quote the number.)*

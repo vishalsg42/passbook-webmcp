@@ -6,6 +6,23 @@ import type { Transaction } from './types'
 /**
  * Anomaly detection.
  *
+ * WHAT `findDuplicateCharges` ACTUALLY FINDS, stated plainly because the name
+ * is easy to over-read: pairs of debits to the same counterparty, for the same
+ * amount, within a few days, with different bank references, that are not
+ * reversed and are not part of a recurring arrangement.
+ *
+ * That is a pattern worth a person's attention. It is NOT evidence of a bank
+ * error, and the difference is not academic. Audited against the owner's real
+ * 1,630-row HDFC statement, all nine pairs it surfaces are genuine intentional
+ * payments: the balance chain reconciles across every one of them, four are
+ * adjacent rows where the balance fell by that amount twice in succession, so
+ * the postings are real and the account holder simply meant to make them.
+ *
+ * Precision as an error detector on the one real statement available: 0 of 9.
+ * Usefulness as a filter: 1,630 rows down to 9 a person can check in minutes.
+ * The copy, the titles and the confidence labels all have to say the second
+ * thing and never the first.
+ *
  * Tuned to what the source statements actually contain. Subscription price
  * hikes are deliberately absent: across the three real statements there are 10
  * fixed amount recurring merchants in one and zero in the other two, so a
@@ -43,7 +60,7 @@ const REVERSAL_WINDOW_DAYS = 30
  * ATM withdrawals in particular are routine repeated round amounts from the
  * same card, which naive matching flags in bulk.
  */
-const NON_MERCHANT_RAILS = /^(?:ATW|NWD|ATM|EAW|CWD)[-\s]/i
+export const NON_MERCHANT_RAILS = /^(?:ATW|NWD|ATM|EAW|CWD)[-\s]/i
 
 /**
  * A double charge is a one-off accident. A merchant that bills the same amount
@@ -133,18 +150,22 @@ export function findDuplicateCharges(transactions: Transaction[]): Finding[] {
         id: `dup-${first.id}-${second.id}`,
         kind: 'duplicate_charge',
         confidence,
-        title: `${merchant || 'This merchant'} charged twice within ${gap === 0 ? 'the same day' : `${gap} day${gap === 1 ? '' : 's'}`}`,
+        title: `${merchant || 'This counterparty'} was paid the same amount twice ${gap === 0 ? 'on the same day' : `${gap} day${gap === 1 ? '' : 's'} apart`}`,
         amount: Math.abs(second.amount),
         evidence: [first, second],
         reasoning:
           `Same counterparty and same amount, ${gap} day(s) apart, with different bank references ` +
           `(${first.reference || 'blank'} and ${second.reference || 'blank'}), and no matching credit ` +
           `within ${REVERSAL_WINDOW_DAYS} days that would indicate a reversal. ` +
-          `This counterparty was charged this amount only twice in the whole statement, so it is not ` +
+          `This counterparty was paid this amount only twice in the whole statement, so it is not ` +
           `a recurring arrangement. ` +
           (confidence === 'high'
-            ? 'Same day, and the counterparty looks like a business, so a double charge is likely.'
-            : 'Confidence is medium: either the charges are on different days, or the counterparty looks like a person, where two identical payments can be deliberate.'),
+            ? 'Both postings landed the same day and the counterparty looks like a business, which is the pattern a double charge makes. '
+            : 'The charges are on different days, or the counterparty looks like a person, where paying the same amount twice is often deliberate. ') +
+          (merchant.split(' ').length < 2
+            ? 'The counterparty was matched on a single word, so this could be two different payees who share a name. Worth a closer look at the two rows above. '
+            : '') +
+          'Passbook cannot tell whether you meant to pay twice. That part is yours.',
       })
     }
   }

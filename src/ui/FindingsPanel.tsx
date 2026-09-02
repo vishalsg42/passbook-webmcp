@@ -40,7 +40,8 @@ export function FindingsPanel() {
           <CardTitle>What we found</CardTitle>
         </CardHeader>
         <CardContent className="py-10 text-center text-muted">
-          Import a statement and Passbook will look for charges you paid twice.
+          Import a statement and Passbook will read every row, then show you the few worth a
+          second look.
         </CardContent>
       </Card>
     )
@@ -72,11 +73,23 @@ export function FindingsPanel() {
         </div>
       )}
 
+      {/* The count leads, not the money. This used to headline the total as
+          "Possibly charged twice", which reads as a sum you are owed. Audited
+          against the owner's real statement, every one of the nine pairs it
+          surfaced was an intentional payment. What Passbook can honestly claim
+          is the narrowing: this many rows, this few worth reading. */}
       {live.length > 0 && (
         <div className="border-b border-line px-5 py-4">
-          <p className="m-0 text-[13px] text-muted">Possibly charged twice</p>
+          <p className="m-0 text-[13px] text-muted">
+            Worth a second look, out of{' '}
+            <b className="num font-semibold text-ink">{transactions.length}</b> rows
+          </p>
           <p className="num m-0 text-[34px] font-semibold leading-tight tracking-tight">
-            {formatPaise(totalAtStake)}
+            {live.length}
+          </p>
+          <p className="m-0 mt-1 text-[13px] text-muted">
+            <b className="num font-semibold text-ink">{formatPaise(totalAtStake)}</b> across them.
+            Passbook cannot tell which were intended &mdash; you can.
           </p>
         </div>
       )}
@@ -84,7 +97,7 @@ export function FindingsPanel() {
       <CardContent className="p-0">
         {live.length === 0 ? (
           <p className="px-5 py-10 text-center text-muted">
-            No duplicate charges left to review. That is good news.
+            Nothing left to review.
           </p>
         ) : (
           <AnimatePresence initial={false}>
@@ -154,7 +167,7 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
         <span className="min-w-0 flex-1 font-semibold">{finding.title}</span>
         <span className="num text-[17px] font-semibold">{formatPaise(finding.amount ?? 0)}</span>
         <Badge variant={finding.confidence === 'high' ? 'high' : 'medium'}>
-          {finding.confidence === 'high' ? 'Likely duplicate' : 'Worth checking'}
+          {finding.confidence === 'high' ? 'Same day, same amount' : 'Worth checking'}
         </Badge>
       </div>
 
@@ -181,10 +194,10 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
           agent. Passbook has the ledger and not the account holder's memory, so
           on a medium confidence candidate it says so to whoever is looking,
           rather than only to the agent. */}
-      {finding.confidence === 'medium' && !drafted && (
+      {!drafted && (
         <p className="mt-2 px-3 text-[13px] text-muted">
-          Passbook cannot settle this one from the statement alone. If you remember something it
-          does not &mdash; you meant to pay twice, or a refund was promised &mdash; that decides it.
+          Passbook cannot settle this from the statement alone. If you remember something it does
+          not &mdash; you meant to pay twice, or a refund was promised &mdash; that decides it.
         </p>
       )}
 

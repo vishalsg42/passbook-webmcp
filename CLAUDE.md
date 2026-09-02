@@ -1,6 +1,6 @@
 # Passbook
 
-**It found the money you already lost, and wrote the letter to get it back.**
+**It reads every row of your statement and finds the few worth a second look.**
 
 An agent audits your real bank statements, finds charges you paid twice, and drafts the dispute
 letters with you. You edit, accept, reject. The page exports a dispute pack, a document neither

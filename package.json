@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "It found the money you already lost, and wrote the letter to get it back.",
+  "description": "It reads every row of your statement and finds the few worth a second look.",
   "license": "MIT",
   "scripts": {
     "dev": "vite",

@@ -67,6 +67,23 @@ These were asserted with confidence and turned out to be wrong. Do not resurrect
   reversal-pair exclusion, `MAX_OCCURRENCES_FOR_DUPLICATE`, and the non-merchant rail filter
   existed. Each of those removed false positives, so 9 is the better number and 31 was never
   right. **Do not cite 31 anywhere.**
+- **All nine candidate pairs in the real data are intentional payments.** Audited 2026-09-02
+  against the owner's own knowledge of the account, and structurally verified: the balance chain
+  reconciles across every pair, the two rows always carry different closing balances, and four
+  pairs are adjacent rows where the balance falls by that amount twice in succession. So the
+  postings are genuine and Passbook is not inventing them — the account holder simply meant to
+  make both payments. **Precision as a bank-error detector on the only real statement available:
+  0 of 9.** Usefulness as a filter: 1,630 rows down to 9 checkable in minutes. Every piece of copy
+  must claim the second and never the first; the tagline, the findings headline, the badges, the
+  tool description and the README were all rewritten on 2026-09-02 for exactly this reason. **Do
+  not reintroduce "found the money you already lost" or any wording that asserts an error.**
+- **One finding matched on a single-word counterparty key**, which could be two different payees
+  sharing a name. Surfaced in the finding's own reasoning rather than silently filtered.
+- **`merchantKey` cannot name a cash withdrawal.** Asked for one it returns the first token after
+  the rail prefix, which on an ATM row is the masked card number: `411111XXXXXX0000` ranked as the
+  largest payee in the spending insight, and would have been sent to the agent by
+  `get_spending_summary`. Cash rails are bucketed under one label, with a test that no counterparty
+  label can ever look like a PAN.
 - **There is no repeat-offender merchant in the real data.** The 9 findings span **9 distinct
   counterparties**; not one merchant double-charged twice across the whole year. Measured on all
   three statements, 2026-09-02. This killed concept #10 below.

@@ -1,4 +1,5 @@
 import { findAll } from '../domain/anomalies'
+import { concentration, topCounterparties } from '../domain/insights'
 import { formatPaise } from '../domain/money'
 import { addCase, packValue, renderPack, updateCase } from '../domain/pack'
 import { store } from '../domain/store'
@@ -95,7 +96,7 @@ const listAccounts: ToolDescriptor<Record<string, never>> = {
 const getDuplicateCandidates: ToolDescriptor<{ minAmount?: number }> = {
   name: 'get_duplicate_candidates',
   description:
-    'Return charges that appear to have been billed twice, with the evidence for each: both dates, both bank references, and why a reversal was ruled out. Each has a confidence of high or medium. Where the evidence cannot settle a candidate, the result carries a question from Passbook to put to the account holder.',
+    'Return pairs of charges to the same counterparty, for the same amount, within a few days, that are not reversals and not part of a recurring arrangement. These are candidates worth checking, NOT confirmed errors: the account holder may well have meant to pay twice, and the statement cannot tell. Never describe them as duplicate charges or as money owed back. Each carries its evidence: both dates, both bank references, and why a reversal was ruled out.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -143,7 +144,10 @@ const getDuplicateCandidates: ToolDescriptor<{ minAmount?: number }> = {
     return ok({
       duplicates,
       totalAtStake: formatPaise(duplicates.reduce((s, d) => s + Number(d.amount.replace(/[^\d.]/g, '')) * 100, 0)),
-      note: 'Descriptions come from the bank statement and are not written by Passbook.',
+      note:
+        'Descriptions come from the bank statement and are not written by Passbook. ' +
+        'These are candidates, not confirmed errors: the account holder may have intended ' +
+        'both payments, and only they can say.',
       // Kept in its own object, and named for its author, because this result
       // carries untrustedContentHint: everything else in it is bank narration.
       // An unlabelled instruction sitting inside content the agent has been
@@ -220,7 +224,7 @@ const getTransactions: ToolDescriptor<{ from?: string; to?: string; search?: str
 const getSpendingSummary: ToolDescriptor<Record<string, never>> = {
   name: 'get_spending_summary',
   description:
-    'Total money in and out across the imported statement, plus the count of standing commitments that debit the same amount repeatedly.',
+    'Total money in and out across the imported statement, the counterparties the money actually went to ranked by amount, what share of all spending they account for, and the count of standing commitments that debit the same amount repeatedly. Use this to tell the account holder where their money goes; every figure is summed from rows reconciled against the printed running balance.',
   inputSchema: { type: 'object', properties: {} },
   annotations: { readOnlyHint: true },
   execute: () => {
@@ -229,11 +233,25 @@ const getSpendingSummary: ToolDescriptor<Record<string, never>> = {
     const out = transactions.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0)
     const inflow = transactions.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0)
 
-    store.log({ actor: 'agent', action: 'get_spending_summary', outcome: 'ok', fields: ['totalIn', 'totalOut'] })
+    const top = topCounterparties(transactions)
+
+    store.log({
+      actor: 'agent',
+      action: 'get_spending_summary',
+      outcome: 'ok',
+      fields: ['totalIn', 'totalOut', 'topCounterparties.merchant', 'topCounterparties.total'],
+    })
 
     return ok({
       totalOut: formatPaise(Math.abs(out)),
       totalIn: formatPaise(inflow),
+      topCounterparties: top.map((c) => ({
+        merchant: c.merchant,
+        total: formatPaise(c.total),
+        payments: c.count,
+        shareOfSpending: `${Math.round(c.share * 100)}%`,
+      })),
+      largestFewAreThisMuchOfSpending: `${Math.round(concentration(transactions, top.length) * 100)}%`,
       standingCommitments: findings.filter((f) => f.kind === 'standing_commitment').length,
       coverage: coverageBlock(),
     })

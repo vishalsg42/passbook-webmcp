@@ -16,7 +16,7 @@ ones who go deeper — so the order matters more than the length.
 
 ## Tagline
 
-It found the money you already lost, and wrote the letter to get it back.
+It reads every row of your statement and finds the few worth a second look.
 
 ---
 

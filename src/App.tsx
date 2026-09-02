@@ -12,6 +12,7 @@ import { AgentPanel } from './ui/AgentPanel'
 import { AuditPanel } from './ui/AuditPanel'
 import { FindingsPanel } from './ui/FindingsPanel'
 import { ImportPanel } from './ui/ImportPanel'
+import { InsightsPanel } from './ui/InsightsPanel'
 import { PackPanel } from './ui/PackPanel'
 import { StatementModeSwitch } from './ui/StatementModeSwitch'
 import { useLiveTools } from './ui/useLiveTools'
@@ -59,7 +60,7 @@ export function App() {
         <div className="min-w-0">
           <h1 className="m-0 text-[22px] font-semibold tracking-tight">Passbook</h1>
           <p className="m-0 mt-0.5 text-[14px] text-muted">
-            It found the money you already lost, and wrote the letter to get it back.
+            It reads every row of your statement and finds the few worth a second look.
           </p>
         </div>
         {/* Always rendered. This block used to be behind
@@ -149,6 +150,7 @@ export function App() {
         <div className="flex min-w-0 flex-col gap-5">
           {!onDemo && <ImportPanel />}
           <FindingsPanel />
+          <InsightsPanel />
           <PackPanel />
           <StatementPanel />
         </div>
