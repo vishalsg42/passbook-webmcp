@@ -39,7 +39,11 @@ export const PROVIDERS: ProviderInfo[] = [
   {
     id: 'gemini',
     label: 'Gemini',
-    defaultModel: 'gemini-2.0-flash',
+    // Google retires these on its own schedule: gemini-2.0-flash returned
+    // "no longer available" mid-build. The model is a text field precisely
+    // because that will happen again, and a hardcoded name would turn a
+    // five-second correction into a dead panel.
+    defaultModel: 'gemini-3.6-flash',
     keyLabel: 'Google AI Studio key',
     keyUrl: 'https://aistudio.google.com/apikey',
   },
