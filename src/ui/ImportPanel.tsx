@@ -126,6 +126,19 @@ export function ImportPanel() {
 
   // Generated from the same rows the demo runs on, so the file can never drift
   // from what it claims to be a copy of.
+  //
+  // Handed to `handleFile`, which is the function a dropped file goes through.
+  // Not a shortcut into the store: the point of offering a sample at all is to
+  // show that Passbook parses a file rather than displaying a constant, and a
+  // button that skipped the parser would prove the opposite of what it claims.
+  // Column detection, the balance chain and the coverage numbers are all real.
+  const loadSample = () => {
+    void handleFile(new File([sampleCsv()], SAMPLE_CSV_FILENAME, { type: 'text/csv' }))
+  }
+
+  // Kept, quietly, for a different question: loading it answers "does this
+  // work", downloading it answers "what exactly is in the file". The second is
+  // worth one link to anyone who wants to check the input by eye.
   const downloadSample = () => {
     const blob = new Blob([sampleCsv()], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -254,13 +267,22 @@ export function ImportPanel() {
               No statement handy?{' '}
               <button
                 type="button"
+                onClick={loadSample}
+                disabled={busy}
+                className="font-medium text-navy underline underline-offset-2 disabled:opacity-50"
+              >
+                Load a sample statement
+              </button>
+              . It is parsed here like any other file &mdash;{' '}
+              <button
+                type="button"
                 onClick={downloadSample}
-                className="inline-flex items-center gap-1 text-navy underline underline-offset-2"
+                className="inline-flex items-center gap-1 underline underline-offset-2"
               >
                 <Download className="size-3.5" aria-hidden />
-                Download a sample CSV
+                download the CSV
               </button>{' '}
-              and drop it back in.
+              if you want to see what went in.
             </p>
             <input
               ref={fileInput}
