@@ -159,7 +159,8 @@ agent, not the product.
 | `list_accounts` | read | Accounts, period, closing balance |
 | `get_duplicate_candidates` | read | Findings with evidence, reasoning, and the open question |
 | `get_transactions` | read | Filter by date or description |
-| `get_spending_summary` | read | Totals in and out |
+| `get_spending_summary` | read | Totals in and out, where the money went, and what share the largest payees are |
+| `total_spent` | read | A computed total over terms the agent supplies, so the model never does the arithmetic |
 | `draft_dispute_case` | draft | Write a case into the pack as a proposal |
 | `dismiss_candidate` | draft | Record why something is not worth disputing |
 | `get_pack_status` | read | What is in the pack |
@@ -261,5 +262,5 @@ npm test           # unit tests plus the real-statement parser check
 npm run build
 ```
 
-Design decisions, including nine concepts tested and killed on first-hand evidence, are in
+Design decisions, including ten concepts tested and nine killed on first-hand evidence, are in
 [`docs/DECISIONS.md`](docs/DECISIONS.md).

@@ -18,7 +18,7 @@ Submission for The WebMCP Challenge (Devpost / OpenAI).
 
 ## Read first
 
-`docs/DECISIONS.md`, nine concepts tested, eight killed on verified evidence, plus the claims that
+`docs/DECISIONS.md`, ten concepts tested, nine killed on verified evidence, plus the claims that
 were falsified along the way and the spec facts that constrain the build. **Read it before
 proposing a pivot.**
 

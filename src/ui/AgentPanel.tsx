@@ -17,10 +17,10 @@ import { useStore } from './useStore'
  * built-in agent as well as for copying into an in-app browser.
  */
 const PROMPTS: { chip: string; text: string }[] = [
-  { chip: 'Where am I losing money?', text: 'Go through my statement and tell me where I am losing money.' },
-  { chip: 'Billed twice?', text: 'Which charges look like I was billed twice? Show me the evidence.' },
-  { chip: 'Draft the letters', text: 'Draft dispute letters for every high confidence duplicate.' },
-  { chip: "What's in my pack?", text: 'What is in my dispute pack right now?' },
+  { chip: 'Where did my money go?', text: 'Where did my money actually go? Show me the biggest counterparties and what share they are.' },
+  { chip: 'How much on food?', text: 'How much did I spend on food? Work out which counterparties count and total them up.' },
+  { chip: 'What leaves on autopilot?', text: 'What standing commitments do I have, and what do they come to in a year?' },
+  { chip: 'Anything worth checking?', text: 'Is anything here worth a second look? Show me the evidence for each.' },
 ]
 
 /**

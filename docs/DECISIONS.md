@@ -1,6 +1,6 @@
 # Decisions
 
-Why Passbook is what it is. Nine concept directions were tested; eight were killed on evidence
+Why Passbook is what it is. Ten concept directions were tested; nine were killed on evidence
 verified first-hand, not on taste. **Read this before proposing a pivot, the graveyard is well
 documented and most obvious ideas are already in it.**
 

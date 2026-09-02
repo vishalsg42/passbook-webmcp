@@ -4,7 +4,7 @@ import { Check, Download, Pencil, X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
 import { formatPaise } from '@/domain/money'
 import { packValue, renderPack, updateCase, type DisputeCase } from '@/domain/pack'
 import { store } from '@/domain/store'
@@ -87,22 +87,36 @@ export function PackPanel() {
 function CaseRow({ entry }: { entry: DisputeCase }) {
   const body = entry.committed ?? entry.draft
   const [editing, setEditing] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason] = useState('')
   const [text, setText] = useState(body.narrative)
   const edited = entry.committed !== null && entry.committed.narrative !== entry.draft.narrative
 
-  const commit = (status: 'accepted' | 'rejected') => {
+  // Rejecting used to record only the status, so a case set aside here left no
+  // trace of why — while the same decision made through dismiss_candidate or in
+  // the findings list requires a reason. Three routes to one outcome should not
+  // disagree about what gets written down.
+  const commit = (status: 'accepted' | 'rejected', reason?: string) => {
+    const rejectionReason =
+      status === 'rejected' ? (reason?.trim() || 'Set aside by the account holder') : undefined
+
     store.update({
       pack: updateCase(store.get().pack, entry.id, {
         status,
         committed: { ...body, narrative: text },
+        ...(rejectionReason ? { rejectionReason } : {}),
       }),
     })
     store.log({
       actor: 'human',
       action: `${status === 'accepted' ? 'Accepted' : 'Rejected'} case for ${body.merchant}`,
       outcome: 'ok',
-      detail: edited || text !== entry.draft.narrative ? 'Edited the drafted letter' : undefined,
+      detail:
+        rejectionReason ??
+        (edited || text !== entry.draft.narrative ? 'Edited the drafted letter' : undefined),
     })
+    setRejecting(false)
+    setReason('')
     setEditing(false)
   }
 
@@ -174,10 +188,40 @@ function CaseRow({ entry }: { entry: DisputeCase }) {
                 <Pencil />
                 Edit first
               </Button>
-              <Button size="sm" variant="danger" onClick={() => commit('rejected')}>
+              <Button size="sm" variant="danger" onClick={() => setRejecting(true)}>
                 <X />
                 Not this one
               </Button>
+            </div>
+          )}
+
+          {rejecting && (
+            <div className="mt-3 rounded-[10px] border border-line bg-muted-bg p-3">
+              <label
+                htmlFor={`pack-why-${entry.id}`}
+                className="mb-2 block text-[13px] font-medium text-ink"
+              >
+                Why are you setting this one aside?
+              </label>
+              <Input
+                id={`pack-why-${entry.id}`}
+                value={reason}
+                autoFocus
+                placeholder="I meant to pay twice"
+                onChange={(e) => setReason(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && commit('rejected', reason)}
+              />
+              <p className="mb-0 mt-2 text-[12.5px] text-muted">
+                Kept with the case, so the pack records why. Optional.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="danger" onClick={() => commit('rejected', reason)}>
+                  Set aside
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setRejecting(false)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
           )}
         </>

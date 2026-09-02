@@ -427,11 +427,6 @@ export const ALL_TOOLS = [
 ] as unknown as ToolDescriptor<never>[]
 
 /** Register the tools the current state supports. Re-run on every change. */
-export function registerPassbookTools(): void {
-  // Imported lazily: surface.ts imports ALL_TOOLS from here.
-  void import('./surface').then((m) => m.syncToolSurface())
-}
-
 /** Recompute findings from the current transactions. */
 export function recomputeFindings(transactions: Transaction[]) {
   return findAll(transactions)
