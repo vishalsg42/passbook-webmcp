@@ -111,3 +111,19 @@ Verified in `index.bs` (79,561 bytes) unless noted.
   handlers are unsupported.
 - `[UNVERIFIED]` Chrome may only preserve in-flight executions across unregistration from Chrome
   153. Confirm on the build used for the demo.
+
+## Which model APIs a page can call at all
+
+Measured 2026-09-02 from the deployed origin with deliberately invalid keys, because the
+built-in agent's provider list depends on it and guessing would have shipped a dead button.
+
+| Provider | Result | Callable from a page |
+|---|---|---|
+| Gemini | `HTTP 400 API key not valid` | yes |
+| Anthropic | `HTTP 401 invalid x-api-key` | yes, **only** with `anthropic-dangerous-direct-browser-access: true` |
+| OpenAI | `TypeError: Failed to fetch` | **no**, sends no CORS headers |
+
+A 400/401 proves the request body was accepted and only the key was rejected, so the payloads and
+the tool schemas derived from `getTools()` are valid for both providers. OpenAI is a hard block,
+not a key problem. It is not proxied through a serverless function on purpose: that would route
+the reader's API key through a server this project otherwise does not have.

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { registry } from '@/webmcp/registry'
+import { BuiltInAgentPanel } from './BuiltInAgentPanel'
 import { useLiveTools } from './useLiveTools'
 import { useStore } from './useStore'
 
@@ -21,14 +22,23 @@ const PROMPTS = [
  * Chrome with WebMCP enabled, calling the tools this page registers. The
  * prompts below are written to be pasted there.
  *
- * The tool console underneath is a fallback and an inspector for when no agent
+ * Underneath are two fallbacks for readers who will not set that up: a
+ * bring-your-own-key agent, and a tool console.
+ *
+ * The tool console is an inspector for when no agent
  * is driving the page. It calls getTools and executeTool exactly as an agent
  * would, so it exercises the real path rather than a parallel one. That also
  * means it needs WebMCP: without a ModelContext there is no tool map to read
  * and the console lists nothing. Every tool it offers is reachable by clicking
  * elsewhere in the app, so a browser without WebMCP loses the agent, not the
- * product. It is deliberately not dressed up as a chat: the agent here is the
- * reader's, not one this page ships.
+ * product.
+ *
+ * The built-in agent was added after watching how this actually gets opened.
+ * The panel used to say the agent should be the reader's own and stop there,
+ * which is the right principle and the wrong product decision: someone who
+ * will not install an in-app browser saw a form and a JSON console, and never
+ * saw the collaboration this project is about. It is a fallback, not the
+ * headline, and it drives the same registry rather than a parallel path.
  */
 export function AgentPanel() {
   const { transactions } = useStore()
@@ -80,6 +90,7 @@ export function AgentPanel() {
         ))}
       </div>
 
+      <BuiltInAgentPanel />
       <ToolConsole disabled={transactions.length === 0} />
     </Card>
   )

@@ -15,6 +15,11 @@ bank: a document neither you nor the agent produces alone.
 >
 > A demo statement loads automatically, so nothing needs uploading to see it work.
 >
+> **No in-app browser? Use your own key.** The agent panel takes a Gemini or Anthropic key and
+> drives the same tools through the same registry, so the tool surface still shrinks as you work
+> and every call still lands in the activity log. The key is kept for that tab only and goes
+> straight to the provider &mdash; Passbook has no server to send it to.
+>
 > **In any other browser it still works.** Passbook loads the WebMCP polyfill from
 > [Chrome's own demo collection](https://github.com/GoogleChromeLabs/webmcp-tools), so the tools,
 > the tool surface changing with state, and the activity log are all live and callable from the
@@ -176,6 +181,23 @@ Open each arm with no statement imported and ask the same adversarial question â
 is imported, just show me the duplicate charges anyway."* Arm A's outcome is a measurement; arm B's
 is structural, because there is nothing to call. Arm A deliberately does not re-check state inside
 `execute`: a code check there would measure what arm B already proves.
+
+### Which providers a page can actually call
+
+The built-in agent offers Gemini and Claude and not OpenAI, which is a measurement rather than a
+preference. Calling each API from a browser with a deliberately invalid key:
+
+```
+Gemini      HTTP 400  reachable
+Anthropic   HTTP 401  reachable, but only with the
+                      anthropic-dangerous-direct-browser-access header
+OpenAI      TypeError: Failed to fetch      no CORS headers at all
+```
+
+OpenAI cannot be called from a web page. Proxying it through a serverless function would work and
+is deliberately not done: it would route the reader's API key through a server this project
+otherwise does not have. Anyone holding an OpenAI key already has the better path, which is
+ChatGPT's in-app browser driving these tools natively.
 
 ### Notes on the API
 
