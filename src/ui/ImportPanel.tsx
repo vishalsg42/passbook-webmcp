@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { AlertCircle, Loader2, Lock, Upload } from 'lucide-react'
+import { AlertCircle, Download, Loader2, Lock, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { extractTextItems } from '@/import/pdf/extract'
 import { detectProfile, parseStatement } from '@/import/pdf/parseStatement'
 import { hasTextLayer, loadPdf, PdfNoTextLayer, type PasswordReason } from '@/import/loadPdf'
 import { parseCsv, previewCsv } from '@/import/csv'
+import { SAMPLE_CSV_FILENAME, sampleCsv } from '@/domain/sampleCsv'
 import type { ParseResult } from '@/domain/types'
 
 type Phase = 'idle' | 'reading' | 'password' | 'parsing' | 'error'
@@ -123,6 +124,19 @@ export function ImportPanel() {
     }
   }, [commit])
 
+  // Generated from the same rows the demo runs on, so the file can never drift
+  // from what it claims to be a copy of.
+  const downloadSample = () => {
+    const blob = new Blob([sampleCsv()], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = SAMPLE_CSV_FILENAME
+    a.click()
+    URL.revokeObjectURL(url)
+    store.log({ actor: 'human', action: 'Downloaded the sample CSV', outcome: 'ok' })
+  }
+
   const submitPassword = () => {
     if (!request || password === '') return
     const { resolve } = request
@@ -230,6 +244,24 @@ export function ImportPanel() {
                 Choose statement
               </Button>
             </div>
+
+            {/* For anyone who wants to see the import path work but does not
+                have an Indian bank statement to hand. The demo alone proves the
+                anomaly engine and never touches the parser, so without this
+                there is no way to check that Passbook reads a file at all
+                rather than displaying a constant. */}
+            <p className="mt-3 text-[13px] text-muted">
+              No statement handy?{' '}
+              <button
+                type="button"
+                onClick={downloadSample}
+                className="inline-flex items-center gap-1 text-navy underline underline-offset-2"
+              >
+                <Download className="size-3.5" aria-hidden />
+                Download a sample CSV
+              </button>{' '}
+              and drop it back in.
+            </p>
             <input
               ref={fileInput}
               type="file"

@@ -36,7 +36,23 @@ export function parseTextMonthDate(raw: string): string | null {
 
 /** Try every supported statement format. */
 export function parseStatementDate(raw: string): string | null {
-  return parseSlashDate(raw) ?? parseTextMonthDate(raw)
+  return parseSlashDate(raw) ?? parseTextMonthDate(raw) ?? parseIsoDate(raw)
+}
+
+/**
+ * ISO dates, for CSV imports.
+ *
+ * Bank PDFs in this corpus never use ISO, but plenty of CSV exports and
+ * aggregator downloads do, and without this every row of such a file failed as
+ * "unreadable date" with nothing on screen explaining why. Tried last, and the
+ * format is unambiguous against the other two, so it cannot change how an
+ * existing statement parses.
+ */
+export function parseIsoDate(raw: string): string | null {
+  const m = raw.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  const [, year, mm, dd] = m
+  return isValidYmd(year, mm, dd) ? `${year}-${mm}-${dd}` : null
 }
 
 function isValidYmd(year: string, mm: string, dd: string): boolean {

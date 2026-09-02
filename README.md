@@ -15,6 +15,12 @@ bank: a document neither you nor the agent produces alone.
 >
 > A demo statement loads automatically, so nothing needs uploading to see it work.
 >
+> **Want to check the parser rather than trust it?** Switch the header to *My statement* and
+> download the sample CSV, then drop it back in. It is generated from the same rows the demo runs
+> on, and a round-trip test asserts the re-imported file matches them transaction for transaction
+> with the balance chain intact &mdash; so the import path is verifiable without an Indian bank
+> statement to hand.
+>
 > **No in-app browser? Use your own key.** The agent panel takes a Gemini or Anthropic key and
 > drives the same tools through the same registry, so the tool surface still shrinks as you work
 > and every call still lands in the activity log. The key is kept for that tab only and goes
