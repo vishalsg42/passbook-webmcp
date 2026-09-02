@@ -20,6 +20,40 @@ import { store } from '@/domain/store'
  * nowhere else; there is no server in this project to send it to.
  */
 
+/**
+ * The little markdown models actually emit: bold, and line breaks.
+ *
+ * Without this an answer renders as `**₹87,409.00**` with the asterisks
+ * showing, and every bullet collapses onto one line because HTML eats the
+ * newlines. Built as React elements rather than parsed HTML: this is model
+ * output rendered in a page that reads bank statements, and it is never going
+ * anywhere near dangerouslySetInnerHTML.
+ */
+function Formatted({ text }: { text: string }) {
+  const lines = text.split('\n').filter((l) => l.trim() !== '')
+
+  return (
+    <>
+      {lines.map((line, i) => {
+        const bullet = /^\s*[*-]\s+/.test(line)
+        const body = line.replace(/^\s*[*-]\s+/, '')
+        return (
+          <span key={i} className={`block ${bullet ? 'pl-3 -indent-3' : ''} ${i > 0 ? 'mt-1' : ''}`}>
+            {bullet && <span aria-hidden>&bull;&nbsp;</span>}
+            {body.split(/(\*\*[^*]+\*\*)/g).map((seg, j) =>
+              seg.startsWith('**') && seg.endsWith('**') && seg.length > 4 ? (
+                <strong key={j}>{seg.slice(2, -2)}</strong>
+              ) : (
+                <span key={j}>{seg}</span>
+              ),
+            )}
+          </span>
+        )
+      })}
+    </>
+  )
+}
+
 type Entry =
   | { kind: 'said'; who: 'you' | 'agent'; text: string }
   | { kind: 'tool'; name: string; failed: boolean; output: string }
@@ -200,17 +234,17 @@ export function BuiltInAgentPanel() {
         <div className="mt-3 max-h-80 space-y-2 overflow-y-auto rounded-[10px] border border-line bg-muted-bg p-3">
           {entries.map((entry, i) =>
             entry.kind === 'said' ? (
-              <p
-                key={i}
-                className={`m-0 text-[13px] leading-relaxed ${
-                  entry.who === 'you' ? 'font-medium text-ink' : 'text-ink'
-                }`}
-              >
-                <span className="mr-2 text-[11px] uppercase tracking-[0.08em] text-muted">
+              // Label above rather than inline: an answer with bullets in it
+              // renders as block lines, which would push a trailing label onto
+              // its own row anyway and leave it looking like a mistake.
+              <div key={i} className="text-[13px] leading-relaxed">
+                <span className="mb-0.5 block text-[11px] uppercase tracking-[0.08em] text-muted">
                   {entry.who}
                 </span>
-                {entry.text}
-              </p>
+                <div className={entry.who === 'you' ? 'font-medium text-ink' : 'text-ink'}>
+                  <Formatted text={entry.text} />
+                </div>
+              </div>
             ) : (
               <p key={i} className="m-0 flex flex-wrap items-center gap-1.5 text-[12px]">
                 <Wrench className="size-3 shrink-0 text-muted" aria-hidden />
