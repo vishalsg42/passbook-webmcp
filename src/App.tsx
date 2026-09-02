@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 import { BookText, Info, TriangleAlert } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { store } from '@/domain/store'
 import { loadDemoStatement } from '@/domain/demo'
+import { SEED_LABEL } from '@/domain/seed'
 import { syncToolSurface } from '@/tools/surface'
 import { currentArm, instructionBreaches } from '@/tools/ablation'
 import { getModelContextError, isWebMCPAvailable, isWebMCPPolyfilled } from '@/webmcp/types'
@@ -11,12 +11,18 @@ import { AuditPanel } from './ui/AuditPanel'
 import { FindingsPanel } from './ui/FindingsPanel'
 import { ImportPanel } from './ui/ImportPanel'
 import { PackPanel } from './ui/PackPanel'
+import { StatementModeSwitch } from './ui/StatementModeSwitch'
+import { useStore } from './ui/useStore'
 import { StatementPanel } from './ui/StatementPanel'
 import { ToolSurfacePanel } from './ui/ToolSurfacePanel'
-import { useStore } from './ui/useStore'
 
 export function App() {
-  const { transactions, statementLabel } = useStore()
+  const { statementLabel } = useStore()
+  // On the demo, importing is not one of the things you are here to do. The
+  // switch in the header owns moving to your own statement, so an upload box
+  // in the page's best position is a second answer to a settled question, and
+  // it pushes the number someone came to see below the fold.
+  const onDemo = statementLabel === SEED_LABEL
   const webmcp = isWebMCPAvailable()
   const polyfilled = isWebMCPPolyfilled()
   const webmcpError = getModelContextError()
@@ -49,20 +55,12 @@ export function App() {
             It found the money you already lost, and wrote the letter to get it back.
           </p>
         </div>
-        {transactions.length > 0 && (
-          <div className="ml-auto flex items-center gap-3">
-            <span className="num text-[13px] text-muted">
-              {statementLabel} · {transactions.length} transactions
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => store.reset()}
-            >
-              Start over
-            </Button>
-          </div>
-        )}
+        {/* Always rendered. This block used to be behind
+            `transactions.length > 0`, so clearing the demo removed the only
+            control that could bring it back. */}
+        <div className="ml-auto">
+          <StatementModeSwitch />
+        </div>
       </header>
 
       {currentArm() === 'instruction' && (
@@ -127,7 +125,7 @@ export function App() {
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-5">
-          <ImportPanel />
+          {!onDemo && <ImportPanel />}
           <FindingsPanel />
           <PackPanel />
           <StatementPanel />

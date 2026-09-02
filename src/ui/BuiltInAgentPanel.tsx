@@ -139,9 +139,25 @@ export function BuiltInAgentPanel() {
         <label className="sr-only" htmlFor="agent-key">
           {info.keyLabel}
         </label>
+        {/*
+          Anti-autofill, and it is not paranoia: Chrome ignored autocomplete="off"
+          here and filled a saved website password into this box, which the
+          change handler then wrote to sessionStorage. The app captured a
+          credential nobody offered it. "new-password" is the value Chrome
+          actually honours, the name avoids looking like a login field, and the
+          two data attributes opt out of 1Password and LastPass.
+
+          It stays type=password because this field is on screen while people
+          record demos.
+        */}
         <Input
           id="agent-key"
           type="password"
+          name="passbook-provider-key"
+          autoComplete="new-password"
+          data-1p-ignore=""
+          data-lpignore="true"
+          spellCheck={false}
           className="num min-w-44 flex-1 text-[13px]"
           value={apiKey}
           placeholder={info.keyLabel}

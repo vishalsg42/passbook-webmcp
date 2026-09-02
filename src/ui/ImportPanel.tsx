@@ -9,9 +9,7 @@ import { extractTextItems } from '@/import/pdf/extract'
 import { detectProfile, parseStatement } from '@/import/pdf/parseStatement'
 import { hasTextLayer, loadPdf, PdfNoTextLayer, type PasswordReason } from '@/import/loadPdf'
 import { parseCsv, previewCsv } from '@/import/csv'
-import { loadDemoStatement } from '@/domain/demo'
 import type { ParseResult } from '@/domain/types'
-import { useStore } from './useStore'
 
 type Phase = 'idle' | 'reading' | 'password' | 'parsing' | 'error'
 
@@ -36,7 +34,6 @@ export function ImportPanel() {
   const [request, setRequest] = useState<PasswordRequest | null>(null)
   const [password, setPassword] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
-  const empty = useStore().transactions.length === 0
 
   const commit = useCallback((file: File, result: ParseResult, sourceLabel: string) => {
     store.update({
@@ -225,18 +222,13 @@ export function ImportPanel() {
                   : 'Reading transactions'
                 : 'Drop your bank statement here, or choose a file. PDF or CSV.'}
             </p>
+            {/* One control, not two. The header switch owns moving between
+                the demo and your own statement, so a second button doing the
+                same thing here would be a second answer to the same question. */}
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <Button onClick={() => fileInput.current?.click()} disabled={busy}>
+              <Button id="choose-statement" onClick={() => fileInput.current?.click()} disabled={busy}>
                 Choose statement
               </Button>
-              {/* The way back from Start over. Reset deliberately does not
-                  re-seed, because the empty surface is where revocation is
-                  visible, so the demo has to be reloadable on purpose. */}
-              {empty && (
-                <Button variant="outline" onClick={loadDemoStatement} disabled={busy}>
-                  Load the demo statement
-                </Button>
-              )}
             </div>
             <input
               ref={fileInput}
@@ -249,10 +241,18 @@ export function ImportPanel() {
                 e.target.value = ''
               }}
             />
-            <p className="mt-4 text-[13px] text-muted">
-              HDFC, Kotak Mahindra, and RBL PDFs, or a CSV export from any bank. Everything is
-              read inside this browser
-              tab, and your statement is never uploaded.
+            {/* The reassurance belongs next to the button, not in a footnote.
+                This is the moment someone decides whether to hand over a bank
+                statement, and it is the only question they are actually asking. */}
+            <p className="mx-auto mt-4 flex max-w-sm items-start justify-center gap-2 text-[13px] text-muted">
+              <Lock className="mt-0.5 size-3.5 shrink-0 text-signal" aria-hidden />
+              <span>
+                Read inside this browser tab. Your statement is never uploaded, and password
+                protected PDFs are supported.
+              </span>
+            </p>
+            <p className="mt-2 text-[12.5px] text-muted">
+              HDFC, Kotak Mahindra and RBL PDFs, or a CSV export from any bank.
             </p>
           </div>
         )}
