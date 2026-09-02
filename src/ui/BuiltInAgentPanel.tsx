@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { runAgentTurn } from '@/agent/loop'
 import { PROVIDERS, type ProviderId, type Turn } from '@/agent/providers'
 import { store } from '@/domain/store'
+import { useLiveTools } from './useLiveTools'
 
 /**
  * A bring-your-own-key agent, for readers who will not set up an in-app browser.
@@ -61,6 +62,7 @@ type Entry =
 const KEY_STORAGE = 'passbook.agentkey.session'
 
 export function BuiltInAgentPanel() {
+  const { tools } = useLiveTools()
   const [provider, setProvider] = useState<ProviderId>('gemini')
   const info = PROVIDERS.find((p) => p.id === provider)!
   const [apiKey, setApiKey] = useState(() => {
@@ -213,6 +215,21 @@ export function BuiltInAgentPanel() {
           onChange={(e) => setModel(e.target.value)}
         />
       </div>
+
+      {/* Says out loud which half is which. A chat box with an API key in it
+          reads as "just an LLM app" unless the split is stated: the key buys
+          the model, the page supplies the tools, and the number is live so the
+          claim is checkable rather than asserted. */}
+      <p className="mb-0 mt-2 text-[12.5px] text-muted">
+        Your key buys the <b className="font-semibold text-ink">model</b>. The{' '}
+        <b className="font-semibold text-ink">tools</b> come from this page:{' '}
+        {info.label} is offered exactly the{' '}
+        <b className="num font-semibold text-ink">{tools.length}</b>{' '}
+        {tools.length === 1 ? 'tool' : 'tools'} that{' '}
+        <code className="num">document.modelContext</code> has registered right now, and every call
+        goes through <code className="num">executeTool</code>. Clear the statement and that number
+        drops, so the model is never even told the rest exist.
+      </p>
 
       <p className="mb-0 mt-2 text-[12.5px] text-muted">
         Your key is kept for this tab only and goes to {info.label} directly &mdash; Passbook has no
