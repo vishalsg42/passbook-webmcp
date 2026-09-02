@@ -1,10 +1,14 @@
-# Passbook
+# Passbook — project rules
 
 **It reads every row of your statement and finds the few worth a second look.**
 
-An agent audits your real bank statements, finds charges you paid twice, and drafts the dispute
-letters with you. You edit, accept, reject. The page exports a dispute pack, a document neither
-you nor the agent produces alone.
+Passbook parses a real bank statement in the browser, reconciles every row against the printed
+running balance, and exposes the result as WebMCP tools so an agent can answer questions over it.
+It reports where the money went, what leaves on standing instructions, and the few charges worth a
+second look — and says plainly that only the account holder can settle those.
+
+This file is the working agreement for the repository: the constraints, the claims discipline, and
+the commands. Read it before changing anything user-facing.
 
 Submission for The WebMCP Challenge (Devpost / OpenAI).
 
@@ -50,9 +54,10 @@ comprehension and is never decorative.
 
 ## Claims, these affect judging
 
-**Say:** the agent drafts into a document the human commits; no credential ever reaches the agent;
-findings are evidence-backed and reversal-checked; every tool result the page produced is logged
-with the exact field set returned.
+**Say:** it read every row and reconciled each against the printed running balance; findings are
+evidence-backed and reversal-checked **candidates**, not confirmed errors; the agent drafts into a
+document the human commits; no credential ever reaches the agent; every tool result the page
+produced is logged with the exact field set returned.
 
 **Never say:**
 - "A backend MCP server structurally cannot do this", false, the MCP spec permits scope-varying
@@ -63,9 +68,17 @@ with the exact field set returned.
 - "Your data never leaves the browser", tool results reach the model. The honest claim is **data
   minimisation**.
 - "Every field the agent ever saw is logged", observations bypass `execute` entirely.
+- **"It found the money you already lost"**, or any wording that asserts a charge was an error.
+  All nine candidates in the real statement were audited and every one was an intentional payment.
+  Precision as an error detector on the only real data available is **0 of 9**. See
+  `docs/DECISIONS.md`.
+- **"Duplicate charge"** about the real statement. They are candidate pairs. The detector is a
+  filter, not a verdict.
 
-**Headline is the money found, never the mechanism.** Approval-gating is the most documented idea
-in this ecosystem; leading with it caps the submission at mid-field.
+**Headline is the scale of what was read and what it tells you, never the mechanism.** 1,630 rows
+down to the few worth a person's attention. Approval-gating and revocation are the most crowded
+framings in this ecosystem; leading with either caps the submission at mid-field, and entries whose
+whole concept is one of them will out-argue a secondary treatment.
 
 ## Commands
 

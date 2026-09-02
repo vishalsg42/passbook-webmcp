@@ -1,7 +1,7 @@
 # Devpost submission
 
 Paste-ready text for the entry form, plus the video plan. Nothing here may contradict the claims
-discipline in `CLAUDE.md`.
+discipline in `docs/PROJECT-RULES.md`.
 
 > **FREEZE AFTER SUBMISSION.** The rules are explicit: once the Submission Period
 > ends you may not alter the submission, and the project must stay live, public
