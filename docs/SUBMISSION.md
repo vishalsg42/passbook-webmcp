@@ -194,17 +194,23 @@ to `sessionStorage`.
 **No login, no credentials, nothing to install.** A demo statement loads by
 itself, so the live URL works the moment it opens.
 
-**The intended path.** Open <https://passbook-webmcp.netlify.app> in ChatGPT's
-in-app browser, or in Chrome 149+ with `chrome://flags/#enable-webmcp-testing`
-enabled, and ask in your own words. Starting points are on the page as one-press
-chips:
+**Either agent browser works.** Open <https://passbook-webmcp.netlify.app> in
+Chrome 149+ with `chrome://flags/#enable-webmcp-testing` enabled, or in ChatGPT's
+in-app browser, and ask in your own words. Starting points are on the page as
+one-press chips:
 
 - *"Where did my money actually go?"*
 - *"How much did I spend on food?"*
 - *"What standing commitments do I have, and what do they come to in a year?"*
 - *"Is anything here worth a second look? Show me the evidence."*
 
-**Without an agent browser, three fallbacks, all on the same page.** Passbook
+**If the page will not open in your agent browser at all,** that is on the
+browser's side rather than this app's — verified on the deployed origin from
+Chrome 152, where `getTools()` returns 8 tools and `executeTool` runs them.
+Passbook is built so that costs you the agent and never the product, so any of
+the following still gives you the whole thing:
+
+**Three fallbacks, all on the same page.** Passbook
 loads the WebMCP polyfill from Chrome's own demo collection, so the tools are
 live in any browser: add `?nowebmcp` to force that path and see it. There is a
 bring-your-own-key agent that takes a Gemini or Anthropic key and drives the same
