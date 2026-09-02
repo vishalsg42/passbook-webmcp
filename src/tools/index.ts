@@ -230,7 +230,7 @@ const totalSpent: ToolDescriptor<{
 }> = {
   name: 'total_spent',
   description:
-    'Add up what was spent on something. YOU decide which terms belong to the category — "food" might be swiggy, zomato, cafe — and Passbook does the arithmetic over rows it reconciled against the printed running balance. Use this instead of adding up get_transactions yourself: a total you compute is a guess, a total this returns is checked. Returns the sum, how many rows made it up, and a per-counterparty breakdown that adds to the same figure.',
+    'Add up what was spent on something. YOU decide which terms belong to the category — for "food" that might be the delivery apps, the cafes and the grocer, named as they appear in the statement — and Passbook does the arithmetic over rows it reconciled against the printed running balance. Use this instead of adding up get_transactions yourself: a total you compute is a guess, a total this returns is checked. Returns the sum, how many rows made it up, and a per-counterparty breakdown that adds to the same figure.',
   inputSchema: {
     type: 'object',
     properties: {
