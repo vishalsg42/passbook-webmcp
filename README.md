@@ -14,6 +14,13 @@ bank: a document neither you nor the agent produces alone.
 > *"Which charges look like I was billed twice? Show me the evidence."*
 >
 > A demo statement loads automatically, so nothing needs uploading to see it work.
+>
+> **In any other browser it still works.** Passbook loads the WebMCP polyfill from
+> [Chrome's own demo collection](https://github.com/GoogleChromeLabs/webmcp-tools), so the tools,
+> the tool surface changing with state, and the activity log are all live and callable from the
+> page. The polyfill cannot make tools discoverable to an agent *outside* the page, and the
+> banner says so rather than implying browser support. Add `?nowebmcp` on a WebMCP-capable
+> browser to force that path and see it.
 
 ---
 

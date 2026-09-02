@@ -112,6 +112,50 @@
       })()
     </script>
 
+    <!--
+      WebMCP polyfill, vendored from GoogleChromeLabs/webmcp-tools (Apache-2.0).
+      See public/vendor/README.md.
+
+      Without it, a browser that has no ModelContext shows a capability banner
+      and an empty tool list, so everything WebMCP-shaped about Passbook is
+      invisible to anyone not running Chrome 149+ with a flag set. The polyfill
+      installs document.modelContext only when the browser provides none, so a
+      native context is left completely alone.
+
+      __webmcpNative is captured BEFORE it loads. Once the polyfill installs
+      itself the two are indistinguishable, and the difference matters: a
+      polyfilled context lets this page drive its own tools, but an external
+      agent still cannot discover them. The banner says so.
+    -->
+    <script>
+      /*
+        ?nowebmcp forces the polyfill path on a browser that has native
+        WebMCP. Without it the fallback is untestable by anyone whose Chrome
+        has the flag on, which is everyone who works on this. Shadowing the
+        prototype getter with an own property is what makes the polyfill's
+        own `if (document.modelContext) return` guard fall through.
+      */
+      if (location.search.indexOf('nowebmcp') !== -1) {
+        try {
+          Object.defineProperty(document, 'modelContext', {
+            value: undefined,
+            configurable: true,
+          })
+        } catch (err) {
+          /* A browser that refuses the shadow simply keeps its native context. */
+        }
+      }
+
+      window.__webmcpNative = (function () {
+        try {
+          return Boolean(document.modelContext)
+        } catch (err) {
+          return false
+        }
+      })()
+    </script>
+    <script src="/vendor/webmcp-polyfill.js"></script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

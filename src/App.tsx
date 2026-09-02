@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
-import { BookText, TriangleAlert } from 'lucide-react'
+import { BookText, Info, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { store } from '@/domain/store'
 import { loadDemoStatement } from '@/domain/demo'
 import { syncToolSurface } from '@/tools/surface'
 import { currentArm, instructionBreaches } from '@/tools/ablation'
-import { getModelContextError, isWebMCPAvailable } from '@/webmcp/types'
+import { getModelContextError, isWebMCPAvailable, isWebMCPPolyfilled } from '@/webmcp/types'
 import { AgentPanel } from './ui/AgentPanel'
 import { AuditPanel } from './ui/AuditPanel'
 import { FindingsPanel } from './ui/FindingsPanel'
@@ -18,6 +18,7 @@ import { useStore } from './ui/useStore'
 export function App() {
   const { transactions, statementLabel } = useStore()
   const webmcp = isWebMCPAvailable()
+  const polyfilled = isWebMCPPolyfilled()
   const webmcpError = getModelContextError()
   const persistError = store.persistError
 
@@ -74,6 +75,27 @@ export function App() {
           <b className="num">{instructionBreaches()}</b>. Remove{' '}
           <code className="num">?ablation=instruction</code> from the URL for arm B, where the
           capability simply does not exist.
+        </div>
+      )}
+
+      {/* A polyfilled context is a real, working tool map for this page, and a
+          judge on any browser can now watch the surface change as they work.
+          It is not the same as browser support and is not presented as such:
+          an agent outside the page still has nothing to discover. */}
+      {polyfilled && (
+        <div className="mb-5 flex gap-2.5 rounded-[10px] border border-[#c3d5f5] bg-[#e8effb] px-4 py-3 text-sm text-[#1e40af]">
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <div>
+            <strong className="block font-semibold">
+              Running on the WebMCP polyfill, so you can try everything here
+            </strong>
+            This browser has no <code className="num">document.modelContext</code>, so Passbook
+            loaded the polyfill from Chrome&rsquo;s own demo collection. Every tool below is real
+            and callable from this page. What the polyfill cannot do is make them discoverable to
+            an agent <em>outside</em> the page &mdash; for that, open this URL in ChatGPT&rsquo;s
+            in-app browser, or Chrome 149+ with{' '}
+            <code className="num">chrome://flags/#enable-webmcp-testing</code> enabled.
+          </div>
         </div>
       )}
 

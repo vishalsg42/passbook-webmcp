@@ -140,3 +140,25 @@ export function getModelContext(): ModelContext | null {
 export function isWebMCPAvailable(): boolean {
   return getModelContext() !== null
 }
+
+/**
+ * Whether the context came from the browser or from the vendored polyfill.
+ *
+ * `index.html` records `window.__webmcpNative` before loading the polyfill,
+ * because afterwards the two are indistinguishable from script. The difference
+ * is not cosmetic and must never be smoothed over: a polyfilled context lets
+ * this page call its own tools, so the tool surface, the console and the
+ * activity log all work. It does **not** make the tools discoverable by an
+ * agent outside the page, because there is no browser implementation for that
+ * agent to talk to. Claiming otherwise would be the one overclaim this project
+ * cannot afford.
+ */
+export function isWebMCPNative(): boolean {
+  if (typeof window === 'undefined') return false
+  return (window as unknown as { __webmcpNative?: boolean }).__webmcpNative === true
+}
+
+/** A usable context that the browser itself provides, rather than the polyfill. */
+export function isWebMCPPolyfilled(): boolean {
+  return isWebMCPAvailable() && !isWebMCPNative()
+}
