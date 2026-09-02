@@ -291,10 +291,29 @@ const dismissCandidate: ToolDescriptor<{ candidateId: string; reason: string }> 
   annotations: { readOnlyHint: false },
   execute: ({ candidateId, reason }) => {
     const state = store.get()
+    const finding = state.findings.find((f) => f.id === candidateId)
+    if (!finding) {
+      store.log({
+        actor: 'agent',
+        action: 'dismiss_candidate',
+        outcome: 'blocked',
+        detail: `unknown candidate ${candidateId}`,
+      })
+      return ok({ error: 'unknown_candidate', message: `No candidate with id ${candidateId}.` })
+    }
+
+    // A candidate is normally dismissed *instead of* being drafted, so there is
+    // usually no case in the pack to reject. Creating one and rejecting it is
+    // what the human path in FindingsPanel does. Rejecting only a pre-existing
+    // case meant the common path recorded nothing while still reporting
+    // success, and the finding stayed on the list the agent had just settled.
     const existing = state.pack.cases.find((c) => c.findingId === candidateId)
-    const pack = existing
-      ? updateCase(state.pack, existing.id, { status: 'rejected', rejectionReason: reason })
-      : state.pack
+    const pack = updateCase(
+      existing ? state.pack : addCase(state.pack, finding),
+      existing ? existing.id : `case-${finding.id}`,
+      { status: 'rejected', rejectionReason: reason },
+    )
+
     store.update({ pack })
     store.log({ actor: 'agent', action: 'dismiss_candidate', outcome: 'ok', detail: `${candidateId}: ${reason}` })
     return ok({ dismissed: candidateId, reason, message: 'Recorded. The account holder can still reinstate it.' })
