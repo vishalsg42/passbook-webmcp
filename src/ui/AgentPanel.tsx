@@ -8,11 +8,19 @@ import { BuiltInAgentPanel } from './BuiltInAgentPanel'
 import { useLiveTools } from './useLiveTools'
 import { useStore } from './useStore'
 
-const PROMPTS = [
-  'Go through my statement and tell me where I am losing money.',
-  'Which charges look like I was billed twice? Show me the evidence.',
-  'Draft dispute letters for every high confidence duplicate.',
-  'What is in my dispute pack right now?',
+/**
+ * Starting points, short label first.
+ *
+ * These were four full-width rows with a Copy button each, which pushed the
+ * conversation itself off the bottom of the screen. As chips they cost one
+ * wrapped line, and clicking one loads it into the box so it works for the
+ * built-in agent as well as for copying into an in-app browser.
+ */
+const PROMPTS: { chip: string; text: string }[] = [
+  { chip: 'Where am I losing money?', text: 'Go through my statement and tell me where I am losing money.' },
+  { chip: 'Billed twice?', text: 'Which charges look like I was billed twice? Show me the evidence.' },
+  { chip: 'Draft the letters', text: 'Draft dispute letters for every high confidence duplicate.' },
+  { chip: "What's in my pack?", text: 'What is in my dispute pack right now?' },
 ]
 
 /**
@@ -42,13 +50,16 @@ const PROMPTS = [
  */
 export function AgentPanel() {
   const { transactions } = useStore()
-  const { tools: liveTools } = useLiveTools()
   const [copied, setCopied] = useState<string | null>(null)
 
-  const copy = async (prompt: string) => {
+  // One press serves both readers: it loads the prompt into the built-in
+  // agent's box, and copies it for anyone pasting into an in-app browser.
+  // Clipboard access can be refused, and that must not stop the fill.
+  const use = async (prompt: { chip: string; text: string }) => {
+    window.dispatchEvent(new CustomEvent('passbook:prompt', { detail: prompt.text }))
     try {
-      await navigator.clipboard.writeText(prompt)
-      setCopied(prompt)
+      await navigator.clipboard.writeText(prompt.text)
+      setCopied(prompt.text)
       window.setTimeout(() => setCopied(null), 1600)
     } catch {
       setCopied(null)
@@ -64,31 +75,28 @@ export function AgentPanel() {
       <CardContent className="border-b border-line py-4">
         <p className="m-0 text-[13px] text-muted">
           Open this page in ChatGPT&rsquo;s in-app browser, or Chrome with WebMCP enabled, and ask
-          in your own words. Passbook publishes {liveTools.length}{' '}
-          {liveTools.length === 1 ? 'tool' : 'tools'} right now, and that number changes as you
-          work: a tool that does not apply yet is not registered at all.
+          in your own words &mdash; or use your own key below.
         </p>
-      </CardContent>
 
-      <div>
-        {PROMPTS.map((prompt) => (
-          <div
-            key={prompt}
-            className="flex items-start gap-3 border-t border-line px-5 py-3 first:border-t-0"
-          >
-            <p className="m-0 flex-1 text-[14px]">{prompt}</p>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => void copy(prompt)}
-              aria-label={`Copy prompt: ${prompt}`}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {PROMPTS.map((prompt) => (
+            <button
+              key={prompt.chip}
+              type="button"
+              onClick={() => void use(prompt)}
+              title={prompt.text}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-[12.5px] text-ink transition-colors hover:bg-muted-bg"
             >
-              {copied === prompt ? <Check className="text-signal" /> : <Copy />}
-              {copied === prompt ? 'Copied' : 'Copy'}
-            </Button>
-          </div>
-        ))}
-      </div>
+              {copied === prompt.text ? (
+                <Check className="size-3.5 text-signal" aria-hidden />
+              ) : (
+                <Copy className="size-3.5 text-muted" aria-hidden />
+              )}
+              {prompt.chip}
+            </button>
+          ))}
+        </div>
+      </CardContent>
 
       <BuiltInAgentPanel />
       <ToolConsole disabled={transactions.length === 0} />

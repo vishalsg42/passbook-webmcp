@@ -33,7 +33,7 @@ import { useStore } from './useStore'
 type Mode = 'demo' | 'own'
 
 export function StatementModeSwitch() {
-  const { transactions, statementLabel, pack } = useStore()
+  const { statementLabel, pack } = useStore()
   const reduceMotion = useReducedMotion()
   const [pending, setPending] = useState<Mode | null>(null)
 
@@ -83,12 +83,6 @@ export function StatementModeSwitch() {
     // question about one control belongs over the page, attached to it.
     <div className="relative">
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <span className="num text-[13px] text-muted">
-          {transactions.length > 0
-            ? `${statementLabel} · ${transactions.length} transactions`
-            : 'No statement loaded'}
-        </span>
-
         <div
           role="radiogroup"
           aria-label="Which statement to work on"

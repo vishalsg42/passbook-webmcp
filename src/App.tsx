@@ -20,7 +20,7 @@ import { StatementPanel } from './ui/StatementPanel'
 import { ToolSurfacePanel } from './ui/ToolSurfacePanel'
 
 export function App() {
-  const { statementLabel } = useStore()
+  const { statementLabel, transactions } = useStore()
   // On the demo, importing is not one of the things you are here to do. The
   // switch in the header owns moving to your own statement, so an upload box
   // in the page's best position is a second answer to a settled question, and
@@ -65,9 +65,20 @@ export function App() {
         {/* Always rendered. This block used to be behind
             `transactions.length > 0`, so clearing the demo removed the only
             control that could bring it back. */}
+        {/* Two rows, both flush right. The statement label used to sit beside
+            the switch, vertically centred against a 44px control with the
+            inspector buttons hanging off a second row underneath, which read
+            as a ragged L. It belongs with the other metadata. */}
         <div className="ml-auto flex flex-col items-end gap-2">
           <StatementModeSwitch />
-          <InspectorButtons onOpen={setDrawer} />
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
+            <span className="num text-[12.5px] text-muted">
+              {transactions.length > 0
+                ? `${statementLabel} · ${transactions.length} transactions`
+                : 'No statement loaded'}
+            </span>
+            <InspectorButtons onOpen={setDrawer} />
+          </div>
         </div>
       </header>
 

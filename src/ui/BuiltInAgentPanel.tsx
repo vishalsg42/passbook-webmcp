@@ -145,6 +145,19 @@ export function BuiltInAgentPanel() {
     if (el) el.scrollTop = el.scrollHeight
   }, [entries])
 
+  // A starting-point chip above loads its prompt here. Left as a window event
+  // rather than lifted state: the two panels are siblings with nothing else to
+  // say to each other, and threading a callback through the card for one string
+  // would be more wiring than the feature is worth.
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      setPrompt((e as CustomEvent<string>).detail)
+      document.getElementById('agent-prompt')?.focus()
+    }
+    window.addEventListener('passbook:prompt', onPrompt)
+    return () => window.removeEventListener('passbook:prompt', onPrompt)
+  }, [])
+
   const pick = (id: ProviderId) => {
     const next = PROVIDERS.find((p) => p.id === id)!
     setProvider(id)

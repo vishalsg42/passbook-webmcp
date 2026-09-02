@@ -153,8 +153,28 @@
           return false
         }
       })()
+
+      /*
+        Loaded only when there is no native context, rather than always with
+        the polyfill deciding for itself.
+
+        Its own guard is a bare `if (window.document.modelContext) return`, and
+        reading that property can throw: ModelContext is [SecureContext] and
+        rejects when the agent cluster is not origin-keyed. In an agent's
+        in-app browser — the one environment this most needs to survive, and
+        the one with no console to read the reason from — that throw would
+        surface as a page error before the app ever mounted. The check above
+        already handles the throw, so it decides, and in a browser with WebMCP
+        the polyfill is never even fetched.
+
+        document.write rather than an injected element: this must complete
+        before the app module runs, and during initial parse this is the
+        synchronous option.
+      */
+      if (!window.__webmcpNative) {
+        document.write('<script src="/vendor/webmcp-polyfill.js"><\/script>')
+      }
     </script>
-    <script src="/vendor/webmcp-polyfill.js"></script>
 
     <script type="module" src="/src/main.tsx"></script>
   </body>
