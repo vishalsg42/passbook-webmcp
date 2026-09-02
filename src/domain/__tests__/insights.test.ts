@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { concentration, topCounterparties, totalOut } from '../insights'
+import { concentration, sumMatching, topCounterparties, totalOut } from '../insights'
+import { findStandingCommitments } from '../anomalies'
 import { seedTransactions } from '../seed'
 
 describe('insights', () => {
@@ -65,6 +66,75 @@ describe('labels', () => {
     if (atmRows.length > 0) {
       expect(cash).toHaveLength(1)
       expect(cash[0].count).toBe(atmRows.length)
+    }
+  })
+})
+
+describe('computed totals', () => {
+  const tx = seedTransactions()
+
+  it('sums only rows matching a term, and never asks a model to add up', () => {
+    const r = sumMatching(tx, { terms: ['swiggy'] })
+    const byHand = tx
+      .filter((t) => t.amount < 0 && t.description.toLowerCase().includes('swiggy'))
+      .reduce((s, t) => s + Math.abs(t.amount), 0)
+    expect(r.total).toBe(byHand)
+    expect(r.count).toBeGreaterThan(0)
+  })
+
+  it('matches any of several terms, which is how a category is expressed', () => {
+    const one = sumMatching(tx, { terms: ['swiggy'] })
+    const two = sumMatching(tx, { terms: ['swiggy', 'blue tokai'] })
+    expect(two.total).toBeGreaterThan(one.total)
+    expect(two.count).toBeGreaterThan(one.count)
+  })
+
+  it('no terms means everything in that direction', () => {
+    expect(sumMatching(tx, {}).total).toBe(totalOut(tx))
+    expect(sumMatching(tx, { direction: 'in' }).total).toBe(
+      tx.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
+    )
+  })
+
+  it('honours date bounds inclusively', () => {
+    const all = sumMatching(tx, {})
+    const bounded = sumMatching(tx, { from: all.firstDate!, to: all.firstDate! })
+    expect(bounded.count).toBeGreaterThan(0)
+    expect(bounded.total).toBeLessThan(all.total)
+    expect(bounded.lastDate).toBe(all.firstDate)
+  })
+
+  it('returns an honest empty result rather than a zero that looks like an answer', () => {
+    const r = sumMatching(tx, { terms: ['definitelynotinthisstatement'] })
+    expect(r.count).toBe(0)
+    expect(r.total).toBe(0)
+    expect(r.firstDate).toBeNull()
+    expect(r.breakdown).toEqual([])
+  })
+
+  it('breakdown sums to the total, so the answer can be checked by eye', () => {
+    const r = sumMatching(tx, { terms: ['upi'] })
+    expect(r.breakdown.reduce((s, c) => s + c.total, 0)).toBe(r.total)
+  })
+})
+
+describe('standing commitments are annualised', () => {
+  it('projects from the observed cadence and stays in proportion', () => {
+    const commitments = findStandingCommitments(seedTransactions())
+    expect(commitments.length).toBeGreaterThan(0)
+    for (const c of commitments) {
+      expect(c.projectedAnnual).toBeDefined()
+      // A projection must be a whole number of payments' worth, and more than
+      // one payment, or it is not telling anyone anything they did not know.
+      expect(c.projectedAnnual!).toBeGreaterThan(c.amount!)
+    }
+  })
+})
+
+describe('projections do not claim false precision', () => {
+  it('annualised figures are whole tens of rupees, never paise', () => {
+    for (const c of findStandingCommitments(seedTransactions())) {
+      expect(c.projectedAnnual! % 1000).toBe(0)
     }
   })
 })

@@ -1,5 +1,5 @@
 import { findAll } from '../domain/anomalies'
-import { concentration, topCounterparties } from '../domain/insights'
+import { concentration, sumMatching, topCounterparties } from '../domain/insights'
 import { formatPaise } from '../domain/money'
 import { addCase, packValue, renderPack, updateCase } from '../domain/pack'
 import { store } from '../domain/store'
@@ -23,6 +23,7 @@ export const TOOL_NAMES = {
   getDuplicateCandidates: 'get_duplicate_candidates',
   getTransactions: 'get_transactions',
   getSpendingSummary: 'get_spending_summary',
+  totalSpent: 'total_spent',
   draftDisputeCase: 'draft_dispute_case',
   dismissCandidate: 'dismiss_candidate',
   getPackStatus: 'get_pack_status',
@@ -221,6 +222,61 @@ const getTransactions: ToolDescriptor<{ from?: string; to?: string; search?: str
   },
 }
 
+const totalSpent: ToolDescriptor<{
+  terms?: string[]
+  from?: string
+  to?: string
+  direction?: 'out' | 'in'
+}> = {
+  name: 'total_spent',
+  description:
+    'Add up what was spent on something. YOU decide which terms belong to the category — "food" might be swiggy, zomato, cafe — and Passbook does the arithmetic over rows it reconciled against the printed running balance. Use this instead of adding up get_transactions yourself: a total you compute is a guess, a total this returns is checked. Returns the sum, how many rows made it up, and a per-counterparty breakdown that adds to the same figure.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      terms: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'Case-insensitive substrings; a row counts if it contains any. Omit for everything.',
+      },
+      from: { type: 'string', description: 'Earliest date to include, YYYY-MM-DD.' },
+      to: { type: 'string', description: 'Latest date to include, YYYY-MM-DD.' },
+      direction: { type: 'string', enum: ['out', 'in'], description: 'Money out (default) or in.' },
+    },
+  },
+  annotations: { readOnlyHint: true },
+  execute: ({ terms, from, to, direction }) => {
+    const { transactions } = store.get()
+    const r = sumMatching(transactions, { terms, from, to, direction })
+
+    store.log({
+      actor: 'agent',
+      action: 'total_spent',
+      outcome: 'ok',
+      detail: terms && terms.length > 0 ? terms.join(', ') : 'everything',
+      fields: ['total', 'count', 'breakdown.merchant', 'breakdown.total'],
+    })
+
+    return ok({
+      total: formatPaise(r.total),
+      rowsCounted: r.count,
+      firstDate: r.firstDate,
+      lastDate: r.lastDate,
+      countedTerms: terms ?? [],
+      breakdown: r.breakdown.map((c) => ({
+        merchant: c.merchant,
+        total: formatPaise(c.total),
+        payments: c.count,
+      })),
+      note:
+        r.count === 0
+          ? 'Nothing matched. Say so rather than reporting zero as an answer; the terms may be wrong.'
+          : 'This total was computed by Passbook over reconciled rows. Quote it exactly and do not re-add it yourself.',
+      coverage: coverageBlock(),
+    })
+  },
+}
+
 const getSpendingSummary: ToolDescriptor<Record<string, never>> = {
   name: 'get_spending_summary',
   description:
@@ -364,6 +420,7 @@ export const ALL_TOOLS = [
   getDuplicateCandidates,
   getTransactions,
   getSpendingSummary,
+  totalSpent,
   draftDisputeCase,
   dismissCandidate,
   getPackStatus,

@@ -48,6 +48,16 @@ export interface Finding {
   evidence: Transaction[]
   /** Why this was not filtered out, stated so a reader can audit the logic. */
   reasoning: string
+  /**
+   * Standing commitments only: money out per year if this keeps up at the
+   * cadence already observed.
+   *
+   * A projection, and labelled as one everywhere it is shown. It is here
+   * because the difference between "₹5,000 a month" and "₹60,000 a year" is
+   * the whole point of noticing a standing commitment, and nobody does that
+   * multiplication while reading a statement.
+   */
+  projectedAnnual?: Paise
 }
 
 /** Days within which two identical charges are treated as the same event. */
@@ -216,18 +226,43 @@ export function findStandingCommitments(transactions: Transaction[]): Finding[] 
     if (merchant === '') continue
 
     const sorted = [...bucket].sort((a, b) => a.date.localeCompare(b.date))
-    const monthly = Math.abs(sorted[0].amount)
+    const each = Math.abs(sorted[0].amount)
+
+    // Annualise from the cadence actually observed rather than assuming
+    // monthly. The median gap resists one long pause between two otherwise
+    // regular payments, which a mean would let drag the estimate down.
+    const gaps: number[] = []
+    for (let i = 1; i < sorted.length; i++) {
+      const gap = daysBetween(sorted[i - 1].date, sorted[i].date)
+      if (gap > 0) gaps.push(gap)
+    }
+    gaps.sort((a, b) => a - b)
+    const medianGap = gaps.length > 0 ? gaps[Math.floor(gaps.length / 2)] : 0
+    const perYear = medianGap > 0 ? 365 / medianGap : 0
+    // Rounded to the nearest ten rupees. This is a projection from a median
+    // gap over a handful of payments, and quoting it to the paise —
+    // "₹58,870.97 a year" — claims a precision it does not have and reads as
+    // arithmetic rather than an estimate.
+    const projectedAnnual =
+      perYear > 0 ? Math.round((each * perYear) / 1000) * 1000 : undefined
 
     findings.push({
       id: `commit-${sorted[0].id}`,
       kind: 'standing_commitment',
       confidence: sorted.length >= 6 ? 'high' : 'medium',
       title: `${merchant} takes the same amount every time, ${sorted.length} times so far`,
-      amount: monthly,
+      amount: each,
       evidence: sorted,
+      projectedAnnual,
       reasoning:
         `${sorted.length} debits of an identical amount to the same counterparty between ` +
-        `${sorted[0].date} and ${sorted[sorted.length - 1].date}.`,
+        `${sorted[0].date} and ${sorted[sorted.length - 1].date}` +
+        (medianGap > 0 ? `, about every ${medianGap} days` : '') +
+        `. ` +
+        (projectedAnnual
+          ? `At that cadence it comes to roughly ${Math.round(perYear)} payments a year. This is a ` +
+            `projection from what the statement shows, not a commitment anyone has confirmed.`
+          : ''),
     })
   }
 

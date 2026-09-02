@@ -270,30 +270,54 @@ function OtherFindings({ findings }: { findings: Finding[] }) {
         </div>
       ))}
 
-      {commitments.length > 0 && (
-        <div className="flex gap-3 px-5 pb-4 pt-3">
-          <CalendarClock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
-          <div className="min-w-0 flex-1">
-            <p className="m-0 text-[14px] font-medium">
-              {commitments.length} standing commitment{commitments.length === 1 ? '' : 's'} leave
-              before you look
-            </p>
-            <div className="mt-2 space-y-1">
-              {commitments.slice(0, 4).map((f) => (
-                <div key={f.id} className="flex items-baseline gap-3 text-[13px]">
-                  <span className="min-w-0 flex-1 truncate text-muted">{f.title}</span>
-                  <span className="num font-medium">{formatPaise(f.amount ?? 0)}</span>
-                </div>
-              ))}
-              {commitments.length > 4 && (
-                <p className="m-0 text-[12.5px] text-muted">
-                  and {commitments.length - 4} more
-                </p>
-              )}
+      {commitments.length > 0 && <Commitments findings={commitments} />}
+    </div>
+  )
+}
+
+/**
+ * Standing commitments, with the multiplication nobody does.
+ *
+ * The amount on the row is what leaves each time; the number that changes
+ * anyone's mind is what it comes to in a year. Both are shown, and the yearly
+ * figure is labelled a projection wherever it appears, because it is one:
+ * it assumes the cadence already observed simply continues.
+ */
+function Commitments({ findings }: { findings: Finding[] }) {
+  const yearly = findings.reduce((sum, f) => sum + (f.projectedAnnual ?? 0), 0)
+
+  return (
+    <div className="flex gap-3 px-5 pb-4 pt-3">
+      <CalendarClock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-[14px] font-medium">
+          {findings.length} standing commitment{findings.length === 1 ? '' : 's'} leave before you
+          look
+        </p>
+        {yearly > 0 && (
+          <p className="m-0 mt-0.5 text-[13px] text-muted">
+            About <b className="num font-semibold text-ink">{formatPaise(yearly)}</b> a year between
+            them, if they carry on at the rate the statement shows.
+          </p>
+        )}
+
+        <div className="mt-2 space-y-1.5">
+          {findings.slice(0, 4).map((f) => (
+            <div key={f.id} className="flex items-baseline gap-3 text-[13px]">
+              <span className="min-w-0 flex-1 truncate text-muted" title={f.title}>
+                {f.title}
+              </span>
+              <span className="num text-muted">{formatPaise(f.amount ?? 0)} each</span>
+              {f.projectedAnnual ? (
+                <span className="num font-medium">{formatPaise(f.projectedAnnual)}/yr</span>
+              ) : null}
             </div>
-          </div>
+          ))}
+          {findings.length > 4 && (
+            <p className="m-0 text-[12.5px] text-muted">and {findings.length - 4} more</p>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

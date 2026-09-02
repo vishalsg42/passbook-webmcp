@@ -55,6 +55,9 @@ export function topCounterparties(transactions: Transaction[], limit = 6): Count
   let outflow = 0
 
   for (const t of transactions) {
+    // Credits are excluded here, but sumMatching may hand this a credit-only
+    // set, in which case there is nothing to rank and it returns empty rather
+    // than pretending money coming in went somewhere.
     if (t.amount >= 0) continue
     const spent = Math.abs(t.amount)
     outflow += spent
@@ -94,4 +97,61 @@ export function concentration(transactions: Transaction[], top = 5): number {
   if (out === 0) return 0
   const head = topCounterparties(transactions, top).reduce((s, c) => s + c.total, 0)
   return head / out
+}
+
+/**
+ * A computed total over the rows the caller names.
+ *
+ * This exists to take arithmetic away from the model. Asked "how much did I
+ * spend on food", an agent with only `get_transactions` pulls back several
+ * thousand characters of rows and adds them up itself — which happened, and
+ * happened to be right, and is exactly the thing this project claims not to do.
+ *
+ * The division of labour that makes the claim true: the model knows Swiggy is
+ * food and supplies the terms; the page knows what the numbers are and does the
+ * summing over rows already reconciled against the printed running balance.
+ * The matched terms come back with the answer so the person can see what was
+ * counted as food and disagree.
+ */
+export interface TotalQuery {
+  /** Case-insensitive substrings; a row matches if it contains any of them. */
+  terms?: string[]
+  /** Inclusive ISO date bounds. */
+  from?: string
+  to?: string
+  direction?: 'out' | 'in'
+}
+
+export interface TotalResult {
+  total: Paise
+  count: number
+  /** Per counterparty, largest first, so the total can be checked by eye. */
+  breakdown: CounterpartyTotal[]
+  /** Dates of the first and last matching row, or null when nothing matched. */
+  firstDate: string | null
+  lastDate: string | null
+}
+
+export function sumMatching(transactions: Transaction[], query: TotalQuery): TotalResult {
+  const direction = query.direction ?? 'out'
+  const terms = (query.terms ?? []).map((t) => t.toLowerCase()).filter((t) => t !== '')
+
+  const matched = transactions.filter((t) => {
+    if (direction === 'out' ? t.amount >= 0 : t.amount <= 0) return false
+    if (query.from && t.date < query.from) return false
+    if (query.to && t.date > query.to) return false
+    if (terms.length === 0) return true
+    const haystack = t.description.toLowerCase()
+    return terms.some((term) => haystack.includes(term))
+  })
+
+  const sorted = [...matched].sort((a, b) => a.date.localeCompare(b.date))
+
+  return {
+    total: matched.reduce((s, t) => s + Math.abs(t.amount), 0),
+    count: matched.length,
+    breakdown: topCounterparties(matched, 12),
+    firstDate: sorted[0]?.date ?? null,
+    lastDate: sorted[sorted.length - 1]?.date ?? null,
+  }
 }
