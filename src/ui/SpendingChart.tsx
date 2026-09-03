@@ -61,14 +61,24 @@ function tickIndexes(count: number, max = 6): Set<number> {
 
 export function SpendingChart() {
   const { transactions } = useStore()
-  const [grain, setGrain] = useState<Granularity>('day')
+  // A year of daily buckets is three hundred bars; a month of them is thirty.
+  // Opening on whichever the statement can actually show, rather than always on
+  // day, means a real statement lands on something readable and the toggle is
+  // still there for the finer view.
+  const span = transactions.length > 0 ? spendingSeries(transactions, 'day').length : 0
+  const [grain, setGrain] = useState<Granularity | null>(null)
+  const active: Granularity = grain ?? (span > 80 ? 'month' : 'day')
 
   if (transactions.length === 0) return null
 
-  const series = spendingSeries(transactions, grain)
+  const series = spendingSeries(transactions, active)
   if (series.length === 0) return null
 
   const peak = Math.max(...series.map((b) => b.moneyOut))
+  // Past this many bars the gaps cost more width than the bars do. At a year of
+  // daily buckets a 1px gap would take three hundred of the plot's six hundred
+  // pixels, so dense series lose the gap entirely and read as a histogram.
+  const dense = series.length > 60
   const ticks = tickIndexes(series.length)
   const total = series.reduce((n, b) => n + b.moneyOut, 0)
 
@@ -86,10 +96,10 @@ export function SpendingChart() {
             <button
               key={g.id}
               role="radio"
-              aria-checked={grain === g.id}
+              aria-checked={active === g.id}
               onClick={() => setGrain(g.id)}
               className={`rounded-[6px] px-2.5 py-1 text-[12px] font-medium transition-colors ${
-                grain === g.id ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(15,23,42,0.1)]' : 'text-muted'
+                active === g.id ? 'bg-surface text-ink shadow-[0_1px_2px_rgba(15,23,42,0.1)]' : 'text-muted'
               }`}
             >
               {g.label}
@@ -101,7 +111,7 @@ export function SpendingChart() {
       <div className="border-b border-line bg-muted-bg px-5 py-2.5 text-[12.5px] text-muted">
         <b className="num font-semibold text-ink">{formatPaise(total)}</b> out across{' '}
         <b className="num font-semibold text-ink">{series.length}</b>{' '}
-        {grain === 'day' ? 'days' : grain === 'week' ? 'weeks' : 'months'} with activity. Tallest bar
+        {active === 'day' ? 'days' : active === 'week' ? 'weeks' : 'months'} with activity. Tallest bar
         is <b className="num font-semibold text-ink">{formatPaise(peak)}</b>. Periods with nothing
         in them are left out rather than drawn as zero.
       </div>
@@ -123,12 +133,12 @@ export function SpendingChart() {
                 <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-line/70" />
               </div>
 
-              <div className="relative flex h-full items-stretch gap-[3px]">
+              <div className={`relative flex h-full items-stretch ${dense ? 'gap-0' : 'gap-[3px]'}`}>
                 {series.map((b) => (
                   <div
                     key={b.bucket}
-                    className="group flex h-full min-w-[4px] flex-1 flex-col justify-end"
-                    title={`${bucketLabel(b.bucket, grain)} — ${formatPaise(b.moneyOut)} out, ${b.count} transaction${b.count === 1 ? '' : 's'}`}
+                    className={`group flex h-full flex-1 flex-col justify-end ${dense ? 'min-w-0' : 'min-w-[4px]'}`}
+                    title={`${bucketLabel(b.bucket, active)} — ${formatPaise(b.moneyOut)} out, ${b.count} transaction${b.count === 1 ? '' : 's'}`}
                   >
                     <div
                       className="rounded-t-[3px] bg-navy transition-colors group-hover:bg-brand-blue"
@@ -148,17 +158,18 @@ export function SpendingChart() {
                 centring the last one pushed it 20px past the plot and up
                 against the card border — fine at this width, clipped at a
                 narrower one. The rest stay centred on the bucket they name. */}
-            <div className="relative flex gap-[3px] pt-1.5">
+            <div className={`relative flex pt-1.5 ${dense ? 'gap-0' : 'gap-[3px]'}`}>
               {series.map((b, i) => {
-                if (!ticks.has(i)) return <div key={b.bucket} className="min-w-[4px] flex-1" />
+                if (!ticks.has(i))
+                  return <div key={b.bucket} className={`flex-1 ${dense ? 'min-w-0' : 'min-w-[4px]'}`} />
                 const edge =
                   i === 0 ? 'absolute left-0' : i === series.length - 1 ? 'absolute right-0' : ''
                 return (
-                  <div key={b.bucket} className="min-w-[4px] flex-1 text-center">
+                  <div key={b.bucket} className={`flex-1 text-center ${dense ? 'min-w-0' : 'min-w-[4px]'}`}>
                     <span
                       className={`num whitespace-nowrap text-[10.5px] leading-none text-muted ${edge}`}
                     >
-                      {bucketLabel(b.bucket, grain)}
+                      {bucketLabel(b.bucket, active)}
                     </span>
                   </div>
                 )
@@ -168,13 +179,13 @@ export function SpendingChart() {
         </div>
 
         <p className="mt-3 text-center text-[11.5px] text-muted">
-          {grain === 'day' ? 'Each bar is one day' : grain === 'week' ? 'Each bar is one week, from its Monday' : 'Each bar is one month'}
+          {active === 'day' ? 'Each bar is one day' : active === 'week' ? 'Each bar is one week, from its Monday' : 'Each bar is one month'}
           {' · hover a bar for the exact figure'}
         </p>
 
         {/* The bars mean nothing to a screen reader; the figures do. */}
         <p className="sr-only">
-          {series.map((b) => `${bucketLabel(b.bucket, grain)}: ${formatPaise(b.moneyOut)}`).join('. ')}
+          {series.map((b) => `${bucketLabel(b.bucket, active)}: ${formatPaise(b.moneyOut)}`).join('. ')}
         </p>
       </CardContent>
     </Card>

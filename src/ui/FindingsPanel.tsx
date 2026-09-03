@@ -89,9 +89,14 @@ export function FindingsPanel() {
           <p className="num m-0 text-[34px] font-semibold leading-tight tracking-tight">
             {live.length}
           </p>
+          {/* "X across them" read as a total of something unspecified — spend,
+              both charges, money owed. It is the second charge in each pair,
+              summed, and the only honest thing to say about it is what it would
+              be if every one turned out to be unintended. */}
           <p className="m-0 mt-1 text-[13px] text-muted">
-            <b className="num font-semibold text-ink">{formatPaise(totalAtStake)}</b> across them.
-            Passbook cannot tell which were intended &mdash; you can.
+            <b className="num font-semibold text-ink">{formatPaise(totalAtStake)}</b> is the second
+            charge in each pair added up &mdash; what would be in question if none of them were
+            intended. Passbook cannot tell which were. You can.
           </p>
         </div>
       )}
