@@ -12,7 +12,7 @@ discipline in `docs/PROJECT-RULES.md`.
 
 - **Live URL:** https://passbook-webmcp.netlify.app
 - **Repo:** https://github.com/vishalsg42/passbook-webmcp (MIT)
-- **Video:** _(to record)_
+- **Video:** https://youtu.be/UtoGfBwUkq0 (2:33, public, captions uploaded)
 
 ## Field placement
 
