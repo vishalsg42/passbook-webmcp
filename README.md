@@ -2,9 +2,9 @@
 
 **It reads every row of your statement and finds the few worth a second look.**
 
-An agent reads your real bank statement, finds charges you paid twice, and drafts the dispute
-letters with you. You edit, accept, reject. Passbook exports a dispute pack you can send to your
-bank: a document neither you nor the agent produces alone.
+An agent reads your real bank statement, surfaces the handful of charges worth a second look, and
+works through them with you. You edit, accept, reject. Passbook exports a dispute pack for the ones
+you decide are wrong: a document neither you nor the agent produces alone.
 
 **Live: <https://passbook-webmcp.netlify.app>** · **[Demo video](https://youtu.be/UtoGfBwUkq0)** (2:33) · Built for
 [The WebMCP Challenge](https://webmcp.devpost.com/) · MIT
