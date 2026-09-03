@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   concentration,
-  monthlySeries,
+  spendingSeries,
   sumMatching,
   topCounterparties,
   totalOut,
@@ -145,40 +145,61 @@ describe('projections do not claim false precision', () => {
   })
 })
 
-describe('monthly series', () => {
+describe('spending series', () => {
   const tx = seedTransactions()
 
-  it('is ordered and covers the whole span', () => {
-    const s = monthlySeries(tx)
-    expect(s.length).toBeGreaterThan(1)
-    expect([...s].sort((a, b) => a.month.localeCompare(b.month))).toEqual(s)
-    expect(s[0].month).toBe(tx[0].date.slice(0, 7))
-    expect(s[s.length - 1].month).toBe(tx[tx.length - 1].date.slice(0, 7))
+  it('defaults to daily, the grain the statement records', () => {
+    const daily = spendingSeries(tx)
+    const dates = new Set(tx.map((t) => t.date))
+    expect(daily).toHaveLength(dates.size)
+    expect(daily.every((b) => /^\d{4}-\d{2}-\d{2}$/.test(b.bucket))).toBe(true)
   })
 
-  it('totals across the series match the statement totals', () => {
-    const s = monthlySeries(tx)
-    expect(s.reduce((n, m) => n + m.moneyOut, 0)).toBe(totalOut(tx))
-    expect(s.reduce((n, m) => n + m.count, 0)).toBe(tx.length)
+  it('is ordered oldest first at every grain', () => {
+    for (const grain of ['day', 'week', 'month'] as const) {
+      const s = spendingSeries(tx, grain)
+      expect([...s].sort((a, b) => a.bucket.localeCompare(b.bucket))).toEqual(s)
+    }
+  })
+
+  it('totals reconcile to the statement at every grain', () => {
+    for (const grain of ['day', 'week', 'month'] as const) {
+      const s = spendingSeries(tx, grain)
+      expect(s.reduce((n, b) => n + b.moneyOut, 0)).toBe(totalOut(tx))
+      expect(s.reduce((n, b) => n + b.count, 0)).toBe(tx.length)
+    }
+  })
+
+  it('rolls up, so a coarser grain never has more buckets than a finer one', () => {
+    const day = spendingSeries(tx, 'day').length
+    const week = spendingSeries(tx, 'week').length
+    const month = spendingSeries(tx, 'month').length
+    expect(week).toBeLessThanOrEqual(day)
+    expect(month).toBeLessThanOrEqual(week)
+  })
+
+  it('buckets a week from its Monday', () => {
+    // 2026-01-07 is a Wednesday; 2026-01-05 is that week's Monday.
+    const s = spendingSeries([{ ...tx[0], date: '2026-01-07' }], 'week')
+    expect(s[0].bucket).toBe('2026-01-05')
   })
 
   it('net is money in minus money out', () => {
-    for (const m of monthlySeries(tx)) expect(m.net).toBe(m.moneyIn - m.moneyOut)
+    for (const b of spendingSeries(tx)) expect(b.net).toBe(b.moneyIn - b.moneyOut)
   })
 
-  it('includes empty months as zero rather than closing the gap', () => {
-    // A January and a March with nothing between them must still yield February,
-    // or a chart drawn from this misreports the trend.
+  it('omits empty buckets rather than padding a year with zeroes', () => {
+    // The tool returns firstDate and lastDate alongside this and tells the agent
+    // that an absent bucket means no activity, which is two fields instead of
+    // several hundred rows saying nothing happened.
     const sparse = [
       { ...tx[0], date: '2026-01-05', amount: -1000 },
       { ...tx[1], date: '2026-03-05', amount: -2000 },
     ]
-    const s = monthlySeries(sparse)
-    expect(s.map((m) => m.month)).toEqual(['2026-01', '2026-02', '2026-03'])
-    expect(s[1]).toMatchObject({ moneyOut: 0, moneyIn: 0, count: 0 })
+    expect(spendingSeries(sparse, 'month').map((b) => b.bucket)).toEqual(['2026-01', '2026-03'])
   })
 
   it('is empty for an empty statement', () => {
-    expect(monthlySeries([])).toEqual([])
+    expect(spendingSeries([])).toEqual([])
   })
 })

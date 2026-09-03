@@ -157,20 +157,25 @@ export function sumMatching(transactions: Transaction[], query: TotalQuery): Tot
 }
 
 /**
- * Month by month, so an agent can plot it.
+ * The spending series, at whatever grain the caller asks for.
  *
- * A statement is a time series and nothing in the product treated it as one.
- * Totals answer "how much", but "is it getting worse" needs the shape, and the
- * shape is what a chart is for. An agent that can render a chart needs numbers
- * to render, not rows to add up — so this returns the series already computed.
+ * Daily by default, because a statement records days and anything coarser is a
+ * decision already made for the reader. An agent that has the days can roll
+ * them into weeks or months for whatever chart it is drawing; one that only has
+ * months cannot get the days back.
  *
- * Months with no activity are included as zeroes rather than skipped. A gap
- * silently closing up misdraws the trend, which is the one thing a chart is
- * supposed to get right.
+ * Only buckets with activity are returned, with the full date range alongside
+ * them. Emitting every empty day of a year would be several hundred rows of
+ * zeroes to say nothing happened, and the range plus an explicit note carries
+ * the same fact in two fields. The note matters: a chart drawn as though the
+ * returned buckets were consecutive would compress the gaps and misdraw the
+ * trend, which is the one thing a chart has to get right.
  */
-export interface MonthTotals {
-  /** YYYY-MM. */
-  month: string
+export type Granularity = 'day' | 'week' | 'month'
+
+export interface BucketTotals {
+  /** YYYY-MM-DD for a day or the Monday of a week, YYYY-MM for a month. */
+  bucket: string
   moneyOut: Paise
   moneyIn: Paise
   /** Positive when more came in than went out. */
@@ -178,30 +183,42 @@ export interface MonthTotals {
   count: number
 }
 
-export function monthlySeries(transactions: Transaction[]): MonthTotals[] {
-  if (transactions.length === 0) return []
+/** Monday of the ISO week containing this date. */
+function weekStart(iso: string): string {
+  const d = new Date(`${iso}T00:00:00Z`)
+  const shift = (d.getUTCDay() + 6) % 7
+  d.setUTCDate(d.getUTCDate() - shift)
+  return d.toISOString().slice(0, 10)
+}
 
-  const byMonth = new Map<string, { moneyOut: Paise; moneyIn: Paise; count: number }>()
+function bucketKey(iso: string, granularity: Granularity): string {
+  if (granularity === 'month') return iso.slice(0, 7)
+  if (granularity === 'week') return weekStart(iso)
+  return iso
+}
+
+export function spendingSeries(
+  transactions: Transaction[],
+  granularity: Granularity = 'day',
+): BucketTotals[] {
+  const buckets = new Map<string, { moneyOut: Paise; moneyIn: Paise; count: number }>()
+
   for (const t of transactions) {
-    const month = t.date.slice(0, 7)
-    const entry = byMonth.get(month) ?? { moneyOut: 0, moneyIn: 0, count: 0 }
+    const key = bucketKey(t.date, granularity)
+    const entry = buckets.get(key) ?? { moneyOut: 0, moneyIn: 0, count: 0 }
     if (t.amount < 0) entry.moneyOut += Math.abs(t.amount)
     else entry.moneyIn += t.amount
     entry.count += 1
-    byMonth.set(month, entry)
+    buckets.set(key, entry)
   }
 
-  const months = [...byMonth.keys()].sort()
-  const filled: string[] = []
-  for (let m = months[0]; m <= months[months.length - 1]; m = nextMonth(m)) filled.push(m)
-
-  return filled.map((month) => {
-    const e = byMonth.get(month) ?? { moneyOut: 0, moneyIn: 0, count: 0 }
-    return { month, moneyOut: e.moneyOut, moneyIn: e.moneyIn, net: e.moneyIn - e.moneyOut, count: e.count }
-  })
-}
-
-function nextMonth(month: string): string {
-  const [y, m] = month.split('-').map(Number)
-  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+  return [...buckets]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([bucket, e]) => ({
+      bucket,
+      moneyOut: e.moneyOut,
+      moneyIn: e.moneyIn,
+      net: e.moneyIn - e.moneyOut,
+      count: e.count,
+    }))
 }

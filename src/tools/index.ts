@@ -1,7 +1,8 @@
 import { findAll } from '../domain/anomalies'
 import {
   concentration,
-  monthlySeries,
+  spendingSeries,
+  type Granularity,
   sumMatching,
   topCounterparties,
 } from '../domain/insights'
@@ -29,7 +30,7 @@ export const TOOL_NAMES = {
   getTransactions: 'get_transactions',
   getSpendingSummary: 'get_spending_summary',
   totalSpent: 'total_spent',
-  getMonthlyTotals: 'get_monthly_totals',
+  getSpendingSeries: 'get_spending_series',
   draftDisputeCase: 'draft_dispute_case',
   dismissCandidate: 'dismiss_candidate',
   getPackStatus: 'get_pack_status',
@@ -283,42 +284,60 @@ const totalSpent: ToolDescriptor<{
   },
 }
 
-const getMonthlyTotals: ToolDescriptor<Record<string, never>> = {
-  name: 'get_monthly_totals',
+const getSpendingSeries: ToolDescriptor<{ granularity?: Granularity }> = {
+  name: 'get_spending_series',
   description:
-    'Money in, money out and net for every month the statement covers, in order, with empty months included as zeroes. Use this when the account holder asks whether spending is rising, what a month looked like, or for anything you intend to draw as a chart: the series is computed here over rows reconciled against the printed running balance, so plot these figures rather than adding transactions up yourself. Amounts come back both as display strings and as plain rupee numbers, because a chart needs the numbers.',
-  inputSchema: { type: 'object', properties: {} },
+    'Money out, money in and net over time, bucketed by day, week or month. Daily by default, because that is the grain the statement records and you can roll days up into anything a chart needs. Use this whenever the account holder asks how spending is trending, what a period looked like, or for anything you intend to plot: the series is computed here over rows reconciled against the printed running balance, so plot these figures rather than adding transactions up yourself. Only buckets with activity are returned; the range is given separately, and any bucket missing from the list had no transactions, so do not draw the buckets as consecutive.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      granularity: {
+        type: 'string',
+        enum: ['day', 'week', 'month'],
+        description: 'Bucket size. Defaults to day. Weeks start on Monday.',
+      },
+    },
+  },
   annotations: { readOnlyHint: true },
-  execute: () => {
-    const series = monthlySeries(store.get().transactions)
+  execute: ({ granularity }) => {
+    const { transactions } = store.get()
+    const grain: Granularity = granularity ?? 'day'
+    const series = spendingSeries(transactions, grain)
+    const dates = transactions.map((t) => t.date).sort()
 
     store.log({
       actor: 'agent',
-      action: 'get_monthly_totals',
+      action: 'get_spending_series',
       outcome: 'ok',
-      fields: ['month', 'moneyOut', 'moneyIn', 'net', 'count'],
+      detail: `${grain}, ${series.length} buckets`,
+      fields: ['bucket', 'moneyOut', 'moneyIn', 'net', 'count'],
     })
 
     return ok({
-      months: series.map((m) => ({
-        month: m.month,
-        // Both forms on purpose: the string is for prose, the number is for a
-        // chart. Handing back only formatted currency would force the agent to
-        // strip symbols and separators to plot it, which is where a wrong axis
-        // comes from.
-        moneyOut: formatPaise(m.moneyOut),
-        moneyIn: formatPaise(m.moneyIn),
-        net: formatPaise(m.net),
-        moneyOutRupees: m.moneyOut / 100,
-        moneyInRupees: m.moneyIn / 100,
-        netRupees: m.net / 100,
-        transactions: m.count,
+      granularity: grain,
+      firstDate: dates[0] ?? null,
+      lastDate: dates[dates.length - 1] ?? null,
+      buckets: series.map((b) => ({
+        bucket: b.bucket,
+        // Both forms deliberately: the string is for prose, the number is for
+        // an axis. Returning only formatted currency forces the agent to strip
+        // symbols and separators before plotting, and that is where a wrong
+        // axis comes from.
+        moneyOut: formatPaise(b.moneyOut),
+        moneyIn: formatPaise(b.moneyIn),
+        net: formatPaise(b.net),
+        moneyOutRupees: b.moneyOut / 100,
+        moneyInRupees: b.moneyIn / 100,
+        netRupees: b.net / 100,
+        transactions: b.count,
       })),
       currency: 'INR',
       note:
         series.length === 0
           ? 'No statement imported, so there is no series to plot.'
-          : 'Computed by Passbook over reconciled rows. Plot these values as given.',
+          : 'Computed by Passbook over reconciled rows. Buckets with no activity are omitted, ' +
+            'so treat any date between firstDate and lastDate that is absent here as zero ' +
+            'rather than drawing these buckets as consecutive.',
       coverage: coverageBlock(),
     })
   },
@@ -468,7 +487,7 @@ export const ALL_TOOLS = [
   getTransactions,
   getSpendingSummary,
   totalSpent,
-  getMonthlyTotals,
+  getSpendingSeries,
   draftDisputeCase,
   dismissCandidate,
   getPackStatus,

@@ -161,7 +161,7 @@ agent, not the product.
 | `get_transactions` | read | Filter by date or description |
 | `get_spending_summary` | read | Totals in and out, where the money went, and what share the largest payees are |
 | `total_spent` | read | A computed total over terms the agent supplies, so the model never does the arithmetic |
-| `get_monthly_totals` | read | Month-by-month in, out and net, as numbers an agent can plot |
+| `get_spending_series` | read | In, out and net over time by day, week or month, as numbers an agent can plot |
 | `draft_dispute_case` | draft | Write a case into the pack as a proposal |
 | `dismiss_candidate` | draft | Record why something is not worth disputing |
 | `get_pack_status` | read | What is in the pack |
