@@ -15,7 +15,7 @@ import { ImportPanel } from './ui/ImportPanel'
 import { InsightsPanel } from './ui/InsightsPanel'
 import { PackPanel } from './ui/PackPanel'
 import { SpendingChart } from './ui/SpendingChart'
-import { StatementModeSwitch } from './ui/StatementModeSwitch'
+import { ClearStatement, StatementModeSwitch } from './ui/StatementModeSwitch'
 import { useLiveTools } from './ui/useLiveTools'
 import { useStore } from './ui/useStore'
 import { StatementPanel } from './ui/StatementPanel'
@@ -79,6 +79,11 @@ export function App() {
                 ? `${statementLabel} · ${transactions.length} transactions`
                 : 'No statement loaded'}
             </span>
+            {/* The mode switch moves between the demo and your own statement,
+                but pressing "My statement" while already on your own does
+                nothing — so once a file was imported there was no way to clear
+                it and start again. */}
+            {!onDemo && transactions.length > 0 && <ClearStatement />}
             <InspectorButtons onOpen={setDrawer} />
           </div>
         </div>

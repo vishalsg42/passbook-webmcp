@@ -19,9 +19,11 @@ import { useStore } from './useStore'
  * an assertion, and this screen is asking someone to dispute a charge with
  * their bank, so the evidence has to be in front of them.
  *
- * Duplicates lead because they are the money you can get back. Standing
- * commitments and overdraft risk follow, because they are worth knowing but
- * are not something to dispute.
+ * Candidates lead because they are the only thing here that needs a decision.
+ * Standing commitments and overdraft risk follow: worth knowing, nothing to
+ * answer. Note what these are NOT — an audit against the real statement found
+ * all nine were intentional payments, so this is a review queue and never a
+ * claim that money is owed back.
  */
 export function FindingsPanel() {
   const { findings, transactions, coverage, pack } = useStore()
@@ -144,7 +146,8 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
   // pack under the same constant sentence.
   const dismiss = (reason: string) => {
     const state = store.get()
-    const rejectionReason = reason.trim() === '' ? 'Dismissed by the account holder' : reason.trim()
+    const rejectionReason =
+      reason.trim() === '' ? 'The account holder meant to pay twice' : reason.trim()
     const existing = state.pack.cases.find((c) => c.findingId === finding.id)
     const pack = existing
       ? updateCase(state.pack, existing.id, { status: 'rejected', rejectionReason })
@@ -155,7 +158,7 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
     store.update({ pack })
     store.log({
       actor: 'human',
-      action: `Dismissed ${finding.title}`,
+      action: `Set aside ${finding.title}`,
       outcome: 'ok',
       detail: rejectionReason,
     })
@@ -201,17 +204,22 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
         </p>
       )}
 
+      {/* Both buttons answer the question above, and the order matters: on the
+          only real statement this was measured against, nine out of nine were
+          intentional, so the common answer goes first. "Not a duplicate" was
+          the old wording, and it invited drafting a dispute for a charge nobody
+          had said was wrong. */}
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button size="sm" variant={drafted ? 'ghost' : 'outline'} onClick={draft} disabled={drafted}>
-          <FilePlus2 />
-          {drafted ? 'In the dispute pack' : 'Draft a dispute letter'}
-        </Button>
         {!drafted && !dismissing && (
-          <Button size="sm" variant="ghost" onClick={() => setDismissing(true)}>
+          <Button size="sm" variant="outline" onClick={() => setDismissing(true)}>
             <X />
-            Not a duplicate
+            I meant to pay twice
           </Button>
         )}
+        <Button size="sm" variant={drafted ? 'ghost' : 'outline'} onClick={draft} disabled={drafted}>
+          <FilePlus2 />
+          {drafted ? 'In the dispute pack' : "I didn't authorise the second one"}
+        </Button>
       </div>
 
       {dismissing && (
@@ -220,13 +228,13 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
             htmlFor={`why-${finding.id}`}
             className="mb-2 block text-[13px] font-medium text-ink"
           >
-            Why is this not a duplicate?
+            What do you remember about it?
           </label>
           <Input
             id={`why-${finding.id}`}
             value={reason}
             autoFocus
-            placeholder="I meant to pay twice"
+            placeholder="Bought a second month of the same thing"
             onChange={(e) => setReason(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && dismiss(reason)}
           />
@@ -235,7 +243,7 @@ function FindingRow({ finding, drafted }: { finding: Finding; drafted: boolean }
           </p>
           <div className="mt-3 flex gap-2">
             <Button size="sm" variant="outline" onClick={() => dismiss(reason)}>
-              Not a duplicate
+              Set it aside
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setDismissing(false)}>
               Cancel

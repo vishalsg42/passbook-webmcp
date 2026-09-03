@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { spendingSeries, type Granularity } from '@/domain/insights'
-import { formatPaise } from '@/domain/money'
+import { formatPaise, type Paise } from '@/domain/money'
 import { useStore } from './useStore'
 
 /**
@@ -27,6 +27,38 @@ const GRAINS: { id: Granularity; label: string }[] = [
   { id: 'month', label: 'Month' },
 ]
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** A bucket key as a person would read it, given what the bucket means. */
+function bucketLabel(bucket: string, grain: Granularity): string {
+  const [y, m, d] = bucket.split('-')
+  const month = MONTHS[Number(m) - 1] ?? m
+  if (grain === 'month') return `${month} ${y}`
+  return `${d} ${month}`
+}
+
+/** Compact rupees for an axis, where the exact figure is on the bar's tooltip. */
+function axisMoney(paise: Paise): string {
+  const rupees = paise / 100
+  if (rupees >= 100000) return `₹${(rupees / 100000).toFixed(1)}L`
+  if (rupees >= 1000) return `₹${Math.round(rupees / 1000)}k`
+  return `₹${Math.round(rupees)}`
+}
+
+/**
+ * Evenly spaced ticks, never more than will fit.
+ *
+ * Labelling all 28 days overlaps into mush and labelling only the ends is not
+ * an axis. First and last are always included so the range stays readable.
+ */
+function tickIndexes(count: number, max = 6): Set<number> {
+  if (count <= max) return new Set(Array.from({ length: count }, (_, i) => i))
+  const step = (count - 1) / (max - 1)
+  const ticks = new Set<number>()
+  for (let i = 0; i < max; i++) ticks.add(Math.round(i * step))
+  return ticks
+}
+
 export function SpendingChart() {
   const { transactions } = useStore()
   const [grain, setGrain] = useState<Granularity>('day')
@@ -37,6 +69,7 @@ export function SpendingChart() {
   if (series.length === 0) return null
 
   const peak = Math.max(...series.map((b) => b.moneyOut))
+  const ticks = tickIndexes(series.length)
   const total = series.reduce((n, b) => n + b.moneyOut, 0)
 
   return (
@@ -74,40 +107,74 @@ export function SpendingChart() {
       </div>
 
       <CardContent>
-        {/* items-stretch, not items-end. A percentage height resolves against
-            the parent's height, and items-end leaves each wrapper at its
-            content height — which is zero, so every bar rendered invisible. */}
-        <div className="flex h-40 items-stretch gap-[3px] overflow-x-auto pb-1">
-          {series.map((b) => (
-            <div
-              key={b.bucket}
-              className="group flex h-full min-w-[6px] flex-1 flex-col justify-end"
-              title={`${b.bucket}: ${formatPaise(b.moneyOut)} out, ${b.count} transaction${b.count === 1 ? '' : 's'}`}
-            >
-              {/* No entrance animation. Two attempts at one — animating height,
-                  then scaleY — both left every bar stuck at its initial value on
-                  the deployed build, and a chart that sometimes renders nothing
-                  is worth strictly less than a chart that never moves. The
-                  motion here was decorative rather than explanatory, which is
-                  the kind this project is supposed to leave out. */}
-              <div
-                className="rounded-t-[3px] bg-navy transition-colors group-hover:bg-brand-blue"
-                style={{
-                  height: `${peak > 0 ? Math.max((b.moneyOut / peak) * 100, b.moneyOut > 0 ? 2 : 1) : 1}%`,
-                }}
-              />
+        {/* Gutter for the value axis, then the plot. Gridlines sit behind the
+            bars so a height can be read against a number instead of guessed. */}
+        <div className="flex gap-2">
+          <div className="flex h-40 w-12 shrink-0 flex-col justify-between py-0 text-right text-[11px] text-muted">
+            <span className="num leading-none">{axisMoney(peak)}</span>
+            <span className="num leading-none">{axisMoney(Math.round(peak / 2))}</span>
+            <span className="num leading-none">₹0</span>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="relative h-40 border-b border-line">
+              <div className="pointer-events-none absolute inset-0" aria-hidden>
+                <div className="absolute inset-x-0 top-0 border-t border-dashed border-line/70" />
+                <div className="absolute inset-x-0 top-1/2 border-t border-dashed border-line/70" />
+              </div>
+
+              <div className="relative flex h-full items-stretch gap-[3px]">
+                {series.map((b) => (
+                  <div
+                    key={b.bucket}
+                    className="group flex h-full min-w-[4px] flex-1 flex-col justify-end"
+                    title={`${bucketLabel(b.bucket, grain)} — ${formatPaise(b.moneyOut)} out, ${b.count} transaction${b.count === 1 ? '' : 's'}`}
+                  >
+                    <div
+                      className="rounded-t-[3px] bg-navy transition-colors group-hover:bg-brand-blue"
+                      style={{
+                        height: `${peak > 0 ? Math.max((b.moneyOut / peak) * 100, b.moneyOut > 0 ? 2 : 1) : 1}%`,
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
+
+            {/* Ticks sit in the same flex track as the bars, so each label is
+                under the bucket it names rather than spread evenly and lying. */}
+            <div className="flex gap-[3px] pt-1.5">
+              {series.map((b, i) => {
+                // Centre every tick except the outermost two: a label centred
+                // on the first or last bar hangs off the end of the plot and
+                // gets clipped.
+                const first = i === 0
+                const last = i === series.length - 1
+                return (
+                  <div
+                    key={b.bucket}
+                    className={`min-w-[4px] flex-1 ${first ? 'text-left' : last ? 'text-right' : 'text-center'}`}
+                  >
+                    {ticks.has(i) && (
+                      <span className="num whitespace-nowrap text-[10.5px] leading-none text-muted">
+                        {bucketLabel(b.bucket, grain)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
         </div>
 
-        <div className="mt-2 flex justify-between text-[11.5px] text-muted">
-          <span className="num">{series[0].bucket}</span>
-          <span className="num">{series[series.length - 1].bucket}</span>
-        </div>
+        <p className="mt-3 text-center text-[11.5px] text-muted">
+          {grain === 'day' ? 'Each bar is one day' : grain === 'week' ? 'Each bar is one week, from its Monday' : 'Each bar is one month'}
+          {' · hover a bar for the exact figure'}
+        </p>
 
-        {/* The bars are decorative to a screen reader; the figures are not. */}
+        {/* The bars mean nothing to a screen reader; the figures do. */}
         <p className="sr-only">
-          {series.map((b) => `${b.bucket}: ${formatPaise(b.moneyOut)}`).join('. ')}
+          {series.map((b) => `${bucketLabel(b.bucket, grain)}: ${formatPaise(b.moneyOut)}`).join('. ')}
         </p>
       </CardContent>
     </Card>

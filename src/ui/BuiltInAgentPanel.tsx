@@ -382,7 +382,7 @@ export function BuiltInAgentPanel() {
           id="agent-prompt"
           className="min-w-48 flex-1 text-[13px]"
           value={prompt}
-          placeholder="Which charges look like I was billed twice?"
+          placeholder="Where did my money actually go?"
           disabled={busy}
           onChange={(e) => setPrompt(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && void send()}

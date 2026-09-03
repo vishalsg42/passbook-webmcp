@@ -152,3 +152,49 @@ export function StatementModeSwitch() {
     </div>
   )
 }
+
+/**
+ * Clear an imported statement and go back to the drop zone.
+ *
+ * Separate from the mode switch on purpose: the switch moves between the demo
+ * and your own data, and pressing the side you are already on is a no-op. Once
+ * a file had been imported there was no way to get back to an empty importer
+ * short of reloading, which is not a thing anyone should have to know.
+ *
+ * Asks first when there is a pack, for the same reason the switch does: the
+ * drafted cases exist nowhere else.
+ */
+export function ClearStatement() {
+  const { pack } = useStore()
+  const [confirming, setConfirming] = useState(false)
+
+  const clear = () => {
+    store.reset()
+    store.log({ actor: 'human', action: 'Cleared the statement', outcome: 'ok' })
+    setConfirming(false)
+    window.requestAnimationFrame(() => document.getElementById('choose-statement')?.focus())
+  }
+
+  if (confirming) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-[12.5px] text-caution">
+        Discard {pack.cases.length} drafted case{pack.cases.length === 1 ? '' : 's'}?
+        <button onClick={clear} className="font-semibold text-danger underline underline-offset-2">
+          Clear
+        </button>
+        <button onClick={() => setConfirming(false)} className="text-muted underline underline-offset-2">
+          Cancel
+        </button>
+      </span>
+    )
+  }
+
+  return (
+    <button
+      onClick={() => (pack.cases.length > 0 ? setConfirming(true) : clear())}
+      className="text-[12.5px] text-muted underline underline-offset-2 hover:text-ink"
+    >
+      Clear
+    </button>
+  )
+}

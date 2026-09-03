@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { AlertCircle, Download, Loader2, Lock, Upload } from 'lucide-react'
+import { AlertCircle, Download, FileDown, Loader2, Lock, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -165,6 +165,26 @@ export function ImportPanel() {
     <Card>
       <CardHeader>
         <CardTitle>Import a statement</CardTitle>
+        {/* Secondary actions belong on the header row. Stacked under the primary
+            button they were two more lines of small print competing with the one
+            thing this card is for. */}
+        {!request && (
+          <div className="ml-auto flex items-center gap-1">
+            <Button size="sm" variant="ghost" onClick={loadSample} disabled={busy}>
+              <FileDown />
+              Load a sample
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={downloadSample}
+              aria-label="Download the sample CSV"
+              title="Download the sample CSV to see exactly what goes in"
+            >
+              <Download />
+            </Button>
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         {error && (
@@ -247,7 +267,7 @@ export function ImportPanel() {
                 ? phase === 'reading'
                   ? 'Opening the statement'
                   : 'Reading transactions'
-                : 'Drop your bank statement here, or choose a file. PDF or CSV.'}
+                : 'Drop your bank statement here, or choose a file.'}
             </p>
             {/* One control, not two. The header switch owns moving between
                 the demo and your own statement, so a second button doing the
@@ -263,27 +283,6 @@ export function ImportPanel() {
                 anomaly engine and never touches the parser, so without this
                 there is no way to check that Passbook reads a file at all
                 rather than displaying a constant. */}
-            <p className="mt-3 text-[13px] text-muted">
-              No statement handy?{' '}
-              <button
-                type="button"
-                onClick={loadSample}
-                disabled={busy}
-                className="font-medium text-navy underline underline-offset-2 disabled:opacity-50"
-              >
-                Load a sample statement
-              </button>
-              . It is parsed here like any other file &mdash;{' '}
-              <button
-                type="button"
-                onClick={downloadSample}
-                className="inline-flex items-center gap-1 underline underline-offset-2"
-              >
-                <Download className="size-3.5" aria-hidden />
-                download the CSV
-              </button>{' '}
-              if you want to see what went in.
-            </p>
             <input
               ref={fileInput}
               type="file"
@@ -295,14 +294,14 @@ export function ImportPanel() {
                 e.target.value = ''
               }}
             />
-            {/* The reassurance belongs next to the button, not in a footnote.
-                This is the moment someone decides whether to hand over a bank
-                statement, and it is the only question they are actually asking. */}
-            <p className="mx-auto mt-4 flex max-w-sm items-start justify-center gap-2 text-[13px] text-muted">
+            {/* One reassurance, at the moment someone decides whether to hand
+                over a bank statement. It is the only question they are actually
+                asking, and it had become the fourth line of small print. */}
+            <p className="mx-auto mt-4 flex max-w-md items-start justify-center gap-2 text-[13px] text-muted">
               <Lock className="mt-0.5 size-3.5 shrink-0 text-signal" aria-hidden />
               <span>
-                Read inside this browser tab. Your statement is never uploaded, and password
-                protected PDFs are supported.
+                Read inside this browser tab and never uploaded. Password protected PDFs are
+                supported.
               </span>
             </p>
             <p className="mt-2 text-[12.5px] text-muted">

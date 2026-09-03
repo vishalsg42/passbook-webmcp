@@ -39,18 +39,37 @@ export class ErrorBoundary extends Component<Props, State> {
         <h1 className="m-0 mb-2 text-xl font-semibold">Passbook stopped</h1>
         <p className="m-0 mb-3 text-muted">
           Something failed while drawing the page. Your imported statement is still in this
-          browser, so reloading usually recovers it. If it does not, Start over clears the stored
-          state.
+          browser, so reloading usually recovers it. If the same error comes back, clearing the
+          stored statement will fix it &mdash; nothing is lost that is not already on your own
+          disk.
         </p>
         <pre className="m-0 mb-4 overflow-x-auto whitespace-pre-wrap break-words rounded-[10px] border border-line bg-muted-bg p-3 text-[12.5px] text-danger">
           {error.stack ?? error.message}
         </pre>
-        <button
-          className="cursor-pointer rounded-[10px] border border-line px-4 py-2 text-[14px] transition-colors duration-200 hover:bg-muted-bg"
-          onClick={() => window.location.reload()}
-        >
-          Reload
-        </button>
+        {/* Both routes out, because "reload" alone strands anyone whose stored
+            state is what broke the render, and the control this used to name
+            no longer exists. */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="cursor-pointer rounded-[10px] border border-line px-4 py-2 text-[14px] transition-colors duration-200 hover:bg-muted-bg"
+            onClick={() => window.location.reload()}
+          >
+            Reload
+          </button>
+          <button
+            className="cursor-pointer rounded-[10px] border border-line px-4 py-2 text-[14px] transition-colors duration-200 hover:bg-muted-bg"
+            onClick={() => {
+              try {
+                localStorage.removeItem('passbook.v1')
+              } catch {
+                // Private mode refuses storage; the reload below still runs.
+              }
+              window.location.reload()
+            }}
+          >
+            Clear the stored statement and reload
+          </button>
+        </div>
       </div>
     )
   }
