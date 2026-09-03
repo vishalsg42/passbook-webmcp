@@ -202,4 +202,22 @@ describe('spending series', () => {
   it('is empty for an empty statement', () => {
     expect(spendingSeries([])).toEqual([])
   })
+
+  it('honours a date range inclusively', () => {
+    const all = spendingSeries(tx, 'month')
+    const one = spendingSeries(tx, 'month', { from: '2026-02-01', to: '2026-02-28' })
+    expect(all.length).toBeGreaterThan(1)
+    expect(one).toHaveLength(1)
+    expect(one[0].bucket).toBe('2026-02')
+  })
+
+  it('filters on the row date, not the bucket, so a bound cannot drag in a part week', () => {
+    // 2026-02-01 is a Sunday, so its week starts 2026-01-26. A February bound
+    // must not pull in the January days that share that week.
+    const feb = spendingSeries(tx, 'week', { from: '2026-02-01', to: '2026-02-28' })
+    const janDays = tx.filter((t) => t.date < '2026-02-01')
+    const janTotal = janDays.reduce((n, t) => n + (t.amount < 0 ? Math.abs(t.amount) : 0), 0)
+    expect(janTotal).toBeGreaterThan(0)
+    expect(feb.reduce((n, b) => n + b.moneyOut, 0)).toBeLessThan(totalOut(tx) - janTotal + 1)
+  })
 })

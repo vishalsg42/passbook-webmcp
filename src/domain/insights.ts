@@ -200,10 +200,15 @@ function bucketKey(iso: string, granularity: Granularity): string {
 export function spendingSeries(
   transactions: Transaction[],
   granularity: Granularity = 'day',
+  range: { from?: string; to?: string } = {},
 ): BucketTotals[] {
   const buckets = new Map<string, { moneyOut: Paise; moneyIn: Paise; count: number }>()
 
   for (const t of transactions) {
+    // Filtered on the row's own date rather than the bucket key, so a month
+    // bound does not silently pull in the rest of a part-covered week.
+    if (range.from && t.date < range.from) continue
+    if (range.to && t.date > range.to) continue
     const key = bucketKey(t.date, granularity)
     const entry = buckets.get(key) ?? { moneyOut: 0, moneyIn: 0, count: 0 }
     if (t.amount < 0) entry.moneyOut += Math.abs(t.amount)

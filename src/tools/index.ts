@@ -284,10 +284,10 @@ const totalSpent: ToolDescriptor<{
   },
 }
 
-const getSpendingSeries: ToolDescriptor<{ granularity?: Granularity }> = {
+const getSpendingSeries: ToolDescriptor<{ granularity?: Granularity; from?: string; to?: string }> = {
   name: 'get_spending_series',
   description:
-    'Money out, money in and net over time, bucketed by day, week or month. Daily by default, because that is the grain the statement records and you can roll days up into anything a chart needs. Use this whenever the account holder asks how spending is trending, what a period looked like, or for anything you intend to plot: the series is computed here over rows reconciled against the printed running balance, so plot these figures rather than adding transactions up yourself. Only buckets with activity are returned; the range is given separately, and any bucket missing from the list had no transactions, so do not draw the buckets as consecutive.',
+    'Money out, money in and net over time, bucketed by day, week or month, optionally within a date range so you can chart one month or compare two. Daily by default, because that is the grain the statement records and you can roll days up into anything a chart needs. Use this whenever the account holder asks how spending is trending, what a period looked like, or for anything you intend to plot: the series is computed here over rows reconciled against the printed running balance, so plot these figures rather than adding transactions up yourself. Only buckets with activity are returned; the range is given separately, and any bucket missing from the list had no transactions, so do not draw the buckets as consecutive.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -296,20 +296,22 @@ const getSpendingSeries: ToolDescriptor<{ granularity?: Granularity }> = {
         enum: ['day', 'week', 'month'],
         description: 'Bucket size. Defaults to day. Weeks start on Monday.',
       },
+      from: { type: 'string', description: 'Earliest date to include, YYYY-MM-DD.' },
+      to: { type: 'string', description: 'Latest date to include, YYYY-MM-DD.' },
     },
   },
   annotations: { readOnlyHint: true },
-  execute: ({ granularity }) => {
+  execute: ({ granularity, from, to }) => {
     const { transactions } = store.get()
     const grain: Granularity = granularity ?? 'day'
-    const series = spendingSeries(transactions, grain)
+    const series = spendingSeries(transactions, grain, { from, to })
     const dates = transactions.map((t) => t.date).sort()
 
     store.log({
       actor: 'agent',
       action: 'get_spending_series',
       outcome: 'ok',
-      detail: `${grain}, ${series.length} buckets`,
+      detail: `${grain}, ${series.length} buckets${from || to ? `, ${from ?? 'start'}..${to ?? 'end'}` : ''}`,
       fields: ['bucket', 'moneyOut', 'moneyIn', 'net', 'count'],
     })
 
