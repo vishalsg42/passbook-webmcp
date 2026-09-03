@@ -1,5 +1,10 @@
 import { findAll } from '../domain/anomalies'
-import { concentration, sumMatching, topCounterparties } from '../domain/insights'
+import {
+  concentration,
+  monthlySeries,
+  sumMatching,
+  topCounterparties,
+} from '../domain/insights'
 import { formatPaise } from '../domain/money'
 import { addCase, packValue, renderPack, updateCase } from '../domain/pack'
 import { store } from '../domain/store'
@@ -24,6 +29,7 @@ export const TOOL_NAMES = {
   getTransactions: 'get_transactions',
   getSpendingSummary: 'get_spending_summary',
   totalSpent: 'total_spent',
+  getMonthlyTotals: 'get_monthly_totals',
   draftDisputeCase: 'draft_dispute_case',
   dismissCandidate: 'dismiss_candidate',
   getPackStatus: 'get_pack_status',
@@ -277,6 +283,47 @@ const totalSpent: ToolDescriptor<{
   },
 }
 
+const getMonthlyTotals: ToolDescriptor<Record<string, never>> = {
+  name: 'get_monthly_totals',
+  description:
+    'Money in, money out and net for every month the statement covers, in order, with empty months included as zeroes. Use this when the account holder asks whether spending is rising, what a month looked like, or for anything you intend to draw as a chart: the series is computed here over rows reconciled against the printed running balance, so plot these figures rather than adding transactions up yourself. Amounts come back both as display strings and as plain rupee numbers, because a chart needs the numbers.',
+  inputSchema: { type: 'object', properties: {} },
+  annotations: { readOnlyHint: true },
+  execute: () => {
+    const series = monthlySeries(store.get().transactions)
+
+    store.log({
+      actor: 'agent',
+      action: 'get_monthly_totals',
+      outcome: 'ok',
+      fields: ['month', 'moneyOut', 'moneyIn', 'net', 'count'],
+    })
+
+    return ok({
+      months: series.map((m) => ({
+        month: m.month,
+        // Both forms on purpose: the string is for prose, the number is for a
+        // chart. Handing back only formatted currency would force the agent to
+        // strip symbols and separators to plot it, which is where a wrong axis
+        // comes from.
+        moneyOut: formatPaise(m.moneyOut),
+        moneyIn: formatPaise(m.moneyIn),
+        net: formatPaise(m.net),
+        moneyOutRupees: m.moneyOut / 100,
+        moneyInRupees: m.moneyIn / 100,
+        netRupees: m.net / 100,
+        transactions: m.count,
+      })),
+      currency: 'INR',
+      note:
+        series.length === 0
+          ? 'No statement imported, so there is no series to plot.'
+          : 'Computed by Passbook over reconciled rows. Plot these values as given.',
+      coverage: coverageBlock(),
+    })
+  },
+}
+
 const getSpendingSummary: ToolDescriptor<Record<string, never>> = {
   name: 'get_spending_summary',
   description:
@@ -421,6 +468,7 @@ export const ALL_TOOLS = [
   getTransactions,
   getSpendingSummary,
   totalSpent,
+  getMonthlyTotals,
   draftDisputeCase,
   dismissCandidate,
   getPackStatus,

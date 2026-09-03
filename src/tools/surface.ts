@@ -38,6 +38,7 @@ const NEEDS_STATEMENT: string[] = [
   TOOL_NAMES.getTransactions,
   TOOL_NAMES.getSpendingSummary,
   TOOL_NAMES.totalSpent,
+  TOOL_NAMES.getMonthlyTotals,
 ]
 
 /** Present only while there is something left to draft. */

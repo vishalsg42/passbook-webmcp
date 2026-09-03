@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { concentration, sumMatching, topCounterparties, totalOut } from '../insights'
+import {
+  concentration,
+  monthlySeries,
+  sumMatching,
+  topCounterparties,
+  totalOut,
+} from '../insights'
 import { findStandingCommitments } from '../anomalies'
 import { seedTransactions } from '../seed'
 
@@ -136,5 +142,43 @@ describe('projections do not claim false precision', () => {
     for (const c of findStandingCommitments(seedTransactions())) {
       expect(c.projectedAnnual! % 1000).toBe(0)
     }
+  })
+})
+
+describe('monthly series', () => {
+  const tx = seedTransactions()
+
+  it('is ordered and covers the whole span', () => {
+    const s = monthlySeries(tx)
+    expect(s.length).toBeGreaterThan(1)
+    expect([...s].sort((a, b) => a.month.localeCompare(b.month))).toEqual(s)
+    expect(s[0].month).toBe(tx[0].date.slice(0, 7))
+    expect(s[s.length - 1].month).toBe(tx[tx.length - 1].date.slice(0, 7))
+  })
+
+  it('totals across the series match the statement totals', () => {
+    const s = monthlySeries(tx)
+    expect(s.reduce((n, m) => n + m.moneyOut, 0)).toBe(totalOut(tx))
+    expect(s.reduce((n, m) => n + m.count, 0)).toBe(tx.length)
+  })
+
+  it('net is money in minus money out', () => {
+    for (const m of monthlySeries(tx)) expect(m.net).toBe(m.moneyIn - m.moneyOut)
+  })
+
+  it('includes empty months as zero rather than closing the gap', () => {
+    // A January and a March with nothing between them must still yield February,
+    // or a chart drawn from this misreports the trend.
+    const sparse = [
+      { ...tx[0], date: '2026-01-05', amount: -1000 },
+      { ...tx[1], date: '2026-03-05', amount: -2000 },
+    ]
+    const s = monthlySeries(sparse)
+    expect(s.map((m) => m.month)).toEqual(['2026-01', '2026-02', '2026-03'])
+    expect(s[1]).toMatchObject({ moneyOut: 0, moneyIn: 0, count: 0 })
+  })
+
+  it('is empty for an empty statement', () => {
+    expect(monthlySeries([])).toEqual([])
   })
 })

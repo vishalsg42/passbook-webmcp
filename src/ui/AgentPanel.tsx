@@ -20,6 +20,7 @@ const PROMPTS: { chip: string; text: string }[] = [
   { chip: 'Where did my money go?', text: 'Where did my money actually go? Show me the biggest counterparties and what share they are.' },
   { chip: 'How much on food?', text: 'How much did I spend on food? Work out which counterparties count and total them up.' },
   { chip: 'What leaves on autopilot?', text: 'What standing commitments do I have, and what do they come to in a year?' },
+  { chip: 'Chart my spending', text: 'Chart my spending month by month and tell me whether it is going up or down.' },
   { chip: 'Anything worth checking?', text: 'Is anything here worth a second look? Show me the evidence for each.' },
 ]
 

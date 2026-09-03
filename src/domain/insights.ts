@@ -155,3 +155,53 @@ export function sumMatching(transactions: Transaction[], query: TotalQuery): Tot
     lastDate: sorted[sorted.length - 1]?.date ?? null,
   }
 }
+
+/**
+ * Month by month, so an agent can plot it.
+ *
+ * A statement is a time series and nothing in the product treated it as one.
+ * Totals answer "how much", but "is it getting worse" needs the shape, and the
+ * shape is what a chart is for. An agent that can render a chart needs numbers
+ * to render, not rows to add up — so this returns the series already computed.
+ *
+ * Months with no activity are included as zeroes rather than skipped. A gap
+ * silently closing up misdraws the trend, which is the one thing a chart is
+ * supposed to get right.
+ */
+export interface MonthTotals {
+  /** YYYY-MM. */
+  month: string
+  moneyOut: Paise
+  moneyIn: Paise
+  /** Positive when more came in than went out. */
+  net: Paise
+  count: number
+}
+
+export function monthlySeries(transactions: Transaction[]): MonthTotals[] {
+  if (transactions.length === 0) return []
+
+  const byMonth = new Map<string, { moneyOut: Paise; moneyIn: Paise; count: number }>()
+  for (const t of transactions) {
+    const month = t.date.slice(0, 7)
+    const entry = byMonth.get(month) ?? { moneyOut: 0, moneyIn: 0, count: 0 }
+    if (t.amount < 0) entry.moneyOut += Math.abs(t.amount)
+    else entry.moneyIn += t.amount
+    entry.count += 1
+    byMonth.set(month, entry)
+  }
+
+  const months = [...byMonth.keys()].sort()
+  const filled: string[] = []
+  for (let m = months[0]; m <= months[months.length - 1]; m = nextMonth(m)) filled.push(m)
+
+  return filled.map((month) => {
+    const e = byMonth.get(month) ?? { moneyOut: 0, moneyIn: 0, count: 0 }
+    return { month, moneyOut: e.moneyOut, moneyIn: e.moneyIn, net: e.moneyIn - e.moneyOut, count: e.count }
+  })
+}
+
+function nextMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+}
