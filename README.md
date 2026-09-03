@@ -6,7 +6,7 @@ An agent reads your real bank statement, finds charges you paid twice, and draft
 letters with you. You edit, accept, reject. Passbook exports a dispute pack you can send to your
 bank: a document neither you nor the agent produces alone.
 
-**Live: <https://passbook-webmcp.netlify.app>** · Built for
+**Live: <https://passbook-webmcp.netlify.app>** · **[Demo video](https://youtu.be/UtoGfBwUkq0)** (2:33) · Built for
 [The WebMCP Challenge](https://webmcp.devpost.com/) · MIT
 
 > **Try it:** open Passbook in ChatGPT's in-app browser, or Chrome 149+ with
