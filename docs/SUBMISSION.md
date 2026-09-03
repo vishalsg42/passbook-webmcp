@@ -137,7 +137,7 @@ the data.
 
 ### The WebMCP implementation
 
-Eight tools, and the registered set is a function of application state rather
+Nine tools, and the registered set is a function of application state rather
 than a fixed catalogue: before a statement is imported, the analysis tools are
 **not registered at all**. Drafting withdraws once every candidate is handled. A
 tool that exists and returns "you cannot use me yet" asks the model not to do
@@ -206,7 +206,7 @@ one-press chips:
 
 **If the page will not open in your agent browser at all,** that is on the
 browser's side rather than this app's — verified on the deployed origin from
-Chrome 152, where `getTools()` returns 8 tools and `executeTool` runs them.
+Chrome 152, where `getTools()` returns 9 tools and `executeTool` runs them.
 Passbook is built so that costs you the agent and never the product, so any of
 the following still gives you the whole thing:
 
