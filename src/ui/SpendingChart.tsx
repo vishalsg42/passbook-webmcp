@@ -143,23 +143,23 @@ export function SpendingChart() {
 
             {/* Ticks sit in the same flex track as the bars, so each label is
                 under the bucket it names rather than spread evenly and lying. */}
-            <div className="flex gap-[3px] pt-1.5">
+            {/* The outer two labels are pinned to the row's edges rather than
+                centred on their bar. A label is far wider than a bar, so
+                centring the last one pushed it 20px past the plot and up
+                against the card border — fine at this width, clipped at a
+                narrower one. The rest stay centred on the bucket they name. */}
+            <div className="relative flex gap-[3px] pt-1.5">
               {series.map((b, i) => {
-                // Centre every tick except the outermost two: a label centred
-                // on the first or last bar hangs off the end of the plot and
-                // gets clipped.
-                const first = i === 0
-                const last = i === series.length - 1
+                if (!ticks.has(i)) return <div key={b.bucket} className="min-w-[4px] flex-1" />
+                const edge =
+                  i === 0 ? 'absolute left-0' : i === series.length - 1 ? 'absolute right-0' : ''
                 return (
-                  <div
-                    key={b.bucket}
-                    className={`min-w-[4px] flex-1 ${first ? 'text-left' : last ? 'text-right' : 'text-center'}`}
-                  >
-                    {ticks.has(i) && (
-                      <span className="num whitespace-nowrap text-[10.5px] leading-none text-muted">
-                        {bucketLabel(b.bucket, grain)}
-                      </span>
-                    )}
+                  <div key={b.bucket} className="min-w-[4px] flex-1 text-center">
+                    <span
+                      className={`num whitespace-nowrap text-[10.5px] leading-none text-muted ${edge}`}
+                    >
+                      {bucketLabel(b.bucket, grain)}
+                    </span>
                   </div>
                 )
               })}
