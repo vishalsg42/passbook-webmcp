@@ -14,6 +14,7 @@ import { FindingsPanel } from './ui/FindingsPanel'
 import { ImportPanel } from './ui/ImportPanel'
 import { InsightsPanel } from './ui/InsightsPanel'
 import { PackPanel } from './ui/PackPanel'
+import { SpendingChart } from './ui/SpendingChart'
 import { StatementModeSwitch } from './ui/StatementModeSwitch'
 import { useLiveTools } from './ui/useLiveTools'
 import { useStore } from './ui/useStore'
@@ -150,6 +151,7 @@ export function App() {
         <div className="flex min-w-0 flex-col gap-5">
           {!onDemo && <ImportPanel />}
           <FindingsPanel />
+          <SpendingChart />
           <InsightsPanel />
           <PackPanel />
           <StatementPanel />
